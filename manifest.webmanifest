@@ -1,0 +1,16 @@
+{
+  "name": "Field Hunt",
+  "short_name": "Field Hunt",
+  "description": "Find reptiles, amphibians, fish, birds, plants and trees near you, see where they've been spotted on a satellite map, and photograph them to tick them off.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef0e8",
+  "theme_color": "#33533a",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
