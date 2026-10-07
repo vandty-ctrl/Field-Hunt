@@ -294,6 +294,20 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .safety .tiny{color:inherit;opacity:.85}
 .safenote{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:800;color:#c62828;grid-column:1/-1}
 .safenote svg{width:18px;height:18px;flex:none}
+.wlook{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.wchip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:800;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:var(--ink)}
+.wchip svg{width:14px;height:14px;flex:none;color:var(--c)}
+.wchip.act{background:var(--night);color:var(--on-night);border-color:var(--night)}
+.wchip.act svg{color:var(--sun)}
+.actline{display:flex;gap:10px;align-items:center;background:var(--paper);border-radius:10px;padding:8px 10px}
+.actline svg{width:28px;height:28px;flex:none;color:var(--c)}
+.actline b{display:block}
+.actline small{font-size:13px;color:var(--muted)}
+.nearlist{display:flex;flex-wrap:wrap;gap:5px}
+.bars.hours{height:64px}
+.bars.hours i.n{background:#4a5d9e} .bars.hours i.t{background:#d9822b} .bars.hours i.d{background:var(--sun)}
+.closest{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:700;background:var(--paper);border-radius:10px;padding:8px 10px}
+.closest svg{width:20px;height:20px;flex:none;color:var(--c)}
 .myf span{position:absolute;inset:auto 0 0 0;padding:16px 6px 5px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.7));color:#fff;font-size:12px;font-weight:800;text-align:left;line-height:1.15}
 
 .board{display:flex;flex-direction:column;gap:6px}
@@ -1103,6 +1117,7 @@ function openSheet(key, fromGrid){
       <div class="face front" aria-hidden="${sheetBack}">
         <div class="fimg">${s.photo ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}">` : ""}<span class="rib">${r.label}</span><span class="pts">${f ? "Got" : "+" + r.pts + " XP"}</span><span class="fliphint">${FLIP_ICON}Flip for field guide</span></div>
         <div class="fbody">${dangerBand(s.danger, true)}<span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")}</span><h2 id="sheetTitle">${esc(s.name)}</h2><div class="sci">${esc(s.sci)}</div>
+          <div class="wlook" id="wlook"></div>
           <p class="hint">${s.custom ? "You added this species to this area." : `${s.count} record${s.count === 1 ? "" : "s"} within ${fmtDist(state.radiusKm)}`} · From ${esc(s.sources.join(" + "))}</p></div>
       </div>
       <div class="face back" aria-hidden="${!sheetBack}"><div class="guide" id="guide"><div class="gload">Opening the field guide…</div></div></div>
@@ -1131,6 +1146,7 @@ function openSheet(key, fromGrid){
   loadGuide(s).then(g => {
     const before = s.danger?.level || 0; s.danger = dangerOf(s);
     if (sheetKey === key && $("#guide")) $("#guide").innerHTML = guideHTML(s, g);
+    if (sheetKey === key && $("#wlook")) $("#wlook").innerHTML = wlookHTML(s, g);
     if ((s.danger?.level || 0) !== before){ renderGrid(); const band = $(".fbody .dz"); const fresh = dangerBand(s.danger, true);
       if (band) band.outerHTML = fresh; else $(".fbody")?.insertAdjacentHTML("afterbegin", fresh); }
   });
@@ -1142,18 +1158,19 @@ function openSheet(key, fromGrid){
 
 /* ---------- field guide (back of each card) ---------- */
 const guideCache = new Map();
+const FACTS_V = 2;
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const sum12 = m => m ? Object.values(m).reduce((a, b) => a + (+b || 0), 0) : 0;
 async function loadFacts(s){
   const k = s.sci.toLowerCase(); const local = ls.get("fh-facts", {});
-  if (local[k]) return { facts: local[k] };
+  if (local[k] && (+local[k].v || 1) >= FACTS_V) return { facts: local[k] };
   if (!state.sb) return { facts:null, note:"More field notes (habitat, diet, seasons) switch on once the account server is set up." };
   try{
     const { data } = await state.sb.from("species_facts").select("facts").eq("sci", k).maybeSingle();
     let facts = data?.facts || null;
-    if (!facts && state.user){
+    if ((!facts || (+facts.v || 1) < FACTS_V) && state.user){
       const { data:d, error } = await state.sb.functions.invoke("verify-find", { body:{ mode:"facts", sci:s.sci, name:s.name, group:s.group, inat_id: s.inatId ? String(s.inatId) : "" } });
-      if (!error) facts = d?.facts || null;
+      if (!error && d?.facts) facts = d.facts;
     }
     if (facts){ local[k] = facts; const ks = Object.keys(local); if (ks.length > 300) delete local[ks[0]]; ls.set("fh-facts", local); return { facts }; }
     return { facts:null, note: state.user ? "Couldn't load the field notes right now. Flip again later." : "Sign in (Me tab) to unlock field notes: habitat, diet, seasons and more." };
@@ -1182,7 +1199,23 @@ function loadGuide(s){
           const o = r.results?.[0], ph = o?.photos?.[0]; return ph ? { url: ph.url.replace("square", "medium"), by: ph.attribution || "" } : null; }).catch(() => null);
         jobs.push(sexPhoto(11).then(x => { g.male = x; }), sexPhoto(10).then(x => { g.female = x; }));
       }
-    } else if (s.gbifKey){
+    }
+    if (id && loc){
+      jobs.push((async () => {
+        const near = Math.max(25, state.radiusKm);
+        const obsQ = km => getJSON(`${INAT}/observations?taxon_id=${id}&lat=${loc.lat}&lng=${loc.lng}&radius=${km}&quality_grade=research&captive=false&per_page=100&order_by=observed_on&order=desc`).then(r => r.results || []).catch(() => []);
+        const res = await obsQ(near);
+        let best = null;
+        for (const o of res){ if (o.obscured || !o.geojson?.coordinates) continue; const p = { lat:o.geojson.coordinates[1], lng:o.geojson.coordinates[0] }; const d = kmBetween(loc, p); if (!best || d < best.d) best = { d, p, date:o.observed_on }; }
+        g.closest = best; g.latest = res[0]?.observed_on || null;
+        if (!plant){
+          let h = hourBins(res), hw = `within ${fmtDist(near)}`;
+          if (h.n < 15){ const h2 = hourBins(await obsQ(200)); if (h2.n > h.n){ h = h2; hw = `within ${fmtDist(200)}`; } }
+          if (h.n >= 8){ g.hours = h; g.hoursWhere = hw; }
+        }
+      })());
+    }
+    if (!id && s.gbifKey){
       jobs.push(getJSON(`${GBIF}/species/${s.gbifKey}`).then(r => { g.tax = ["kingdom","phylum","class","order","family","genus","species"].filter(k => r[k]).map(k => ({ rank:k, name:r[k], common:"" })); }).catch(() => {}));
     }
     await Promise.all(jobs);
@@ -1193,24 +1226,75 @@ function loadGuide(s){
 const peakMonths = m => { const v = MONTHS.map((_, i) => +(m?.[i + 1] || 0)), mx = Math.max(...v); if (!mx) return ""; return MONTHS.filter((_, i) => v[i] >= mx * 0.6).join(", "); };
 const monthBars = (m, cls) => { const v = MONTHS.map((_, i) => +(m?.[i + 1] || 0)), mx = Math.max(1, ...v);
   return `<div class="bars ${cls}" role="img" aria-label="Records by month, peak in ${peakMonths(m)}">${v.map((x, i) => `<span><i style="height:${Math.round(x / mx * 100)}%"></i><b>${MONTHS[i][0]}</b></span>`).join("")}</div>`; };
+/* where to look */
+const ICO = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const ACT = {
+  diurnal:["Active by day", ICO('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>')],
+  nocturnal:["Active at night", ICO('<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>')],
+  crepuscular:["Active at dawn & dusk", ICO('<path d="M17 18a5 5 0 0 0-10 0"/><path d="M12 9V5M4.2 10.2l1.4 1.4M1 18h2M21 18h2M18.4 11.6l1.4-1.4M23 22H1"/>')],
+  cathemeral:["Active day and night", ICO('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')]
+};
+const PIN = ICO('<path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.6"/>');
+function hourBins(list){ const b = Array(12).fill(0); let n = 0; for (const o of list){ const m = String(o.time_observed_at || "").match(/T(\d\d):/); if (!m) continue; b[Math.floor(+m[1] / 2)]++; n++; } return { b, n }; }
+const hourLabel = h => h === 0 || h === 24 ? "midnight" : h === 12 ? "noon" : h < 12 ? `${h} am` : `${h - 12} pm`;
+function peakHours(b){
+  const mx = Math.max(...b); if (!mx) return "";
+  const on = b.map(v => v >= mx * 0.6), out = [];
+  for (let i = 0; i < 12; i++) if (on[i] && !on[(i + 11) % 12] || (on[i] && i === 0 && !on[11])){ let j = i; while (on[(j + 1) % 12] && (j + 1) % 12 !== i) j = (j + 1) % 12; out.push(`${hourLabel(i * 2)}–${hourLabel(((j + 1) * 2) % 24 || 24)}`); }
+  if (!out.length) return "all day";
+  return [...new Set(out)].join(", ");
+}
+function dataActivity(h){
+  if (!h || h.n < 12) return null;
+  const night = [0, 1, 2, 10, 11].reduce((a, i) => a + h.b[i], 0) / h.n, twi = (h.b[3] + h.b[9]) / h.n;
+  return night > 0.5 ? "nocturnal" : twi > 0.4 ? "crepuscular" : night > 0.3 ? "cathemeral" : "diurnal";
+}
+const hourBars = h => { const mx = Math.max(1, ...h.b);
+  return `<div class="bars hours" role="img" aria-label="Records by time of day, peak ${peakHours(h.b)}">${h.b.map((x, i) => `<span><i class="${[0,1,2,10,11].includes(i) ? "n" : [3,9].includes(i) ? "t" : "d"}" style="height:${Math.round(x / mx * 100)}%"></i><b>${i % 3 === 0 ? ["12a","6a","12p","6p"][i / 3] : "&nbsp;"}</b></span>`).join("")}</div>`; };
+const compass = (a, b) => { const r = x => x * Math.PI / 180; const y = Math.sin(r(b.lng - a.lng)) * Math.cos(r(b.lat)), x = Math.cos(r(a.lat)) * Math.sin(r(b.lat)) - Math.sin(r(a.lat)) * Math.cos(r(b.lat)) * Math.cos(r(b.lng - a.lng));
+  return ["north","north-east","east","south-east","south","south-west","west","north-west"][Math.round(((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360 / 45) % 8]; };
+const ago = d => { const n = Math.round((Date.now() - Date.parse(d)) / 864e5); return !Number.isFinite(n) ? "" : n <= 0 ? "today" : n === 1 ? "yesterday" : n < 60 ? `${n} days ago` : n < 730 ? `${Math.round(n / 30)} months ago` : `${Math.round(n / 365)} years ago`; };
+const closestText = c => c.d < 0.15 ? `Recorded right around here, ${ago(c.date)}` : `Closest record: ${fmtDist(c.d)} ${compass(state.loc, c.p)} of your hunting spot, ${ago(c.date)}`;
+function wlookHTML(s, g){
+  const F = g.facts || {}, act = F.activity || dataActivity(g.hours), chips = [];
+  if (act && ACT[act]) chips.push(`<span class="wchip act">${ACT[act][1]}${{ diurnal:"Day", nocturnal:"Night", crepuscular:"Dawn & dusk", cathemeral:"Day & night" }[act]}</span>`);
+  (F.near || []).slice(0, 2).forEach(t => chips.push(`<span class="wchip">${PIN}${esc(cap(t))}</span>`));
+  if (g.closest) chips.push(`<span class="wchip">${ICO('<path d="M3 11l18-8-8 18-2-8z"/>')}${g.closest.d < 0.15 ? "Seen right here" : `${fmtDist(g.closest.d)} ${compass(state.loc, g.closest.p).replace(/(\w)\w*-?(\w)?\w*/, (m, a, b) => (a + (b || "")).toUpperCase())}`}</span>`);
+  return chips.join("");
+}
+function whereSection(s, g){
+  const plant = isPlantish(s.group) || s.group === "fungi", F = g.facts || {};
+  const act = F.activity || dataActivity(g.hours), fromData = !F.activity && act;
+  const rows = [["Habitat","habitat"],["Exact spots to check","microhabitat"],["Best time","best_time"],[plant ? "What to look for" : "Habits","habits"],[plant ? "Spot it from afar" : "Signs it's nearby","signs"],["Best weather","weather"],["Spotting tip","spot_tip"]]
+    .filter(([, k]) => F[k] && !/^(not well known|n\/a)\.?$/i.test(F[k]));
+  return `<div class="gsec"><div class="label">Where to look</div>
+    ${act && ACT[act] && !plant ? `<div class="actline">${ACT[act][1]}<div><b>${ACT[act][0]}</b><small>${fromData ? "Based on when people have recorded it." : act === "nocturnal" ? "Bring a torch and look after dark." : act === "crepuscular" ? "Look around sunrise and sunset." : act === "diurnal" ? "Look during daylight." : "Can turn up at any hour."}</small></div></div>` : ""}
+    ${g.hours ? `${hourBars(g.hours)}<p class="tiny">Records by time of day, ${esc(g.hoursWhere)}. Most recorded: ${peakHours(g.hours.b)}. People record more in daylight, so night-time animals can look less active than they are.</p>` : ""}
+    ${F.near?.length ? `<div class="nearlist">${F.near.map(t => `<span class="wchip">${PIN}${esc(cap(t))}</span>`).join("")}</div>` : ""}
+    ${rows.length ? `<dl class="facts">${rows.map(([l, k]) => `<div><dt>${l}</dt><dd>${esc(F[k])}</dd></div>`).join("")}</dl>` : ""}
+    ${g.closest ? `<div class="closest">${PIN}<span>${closestText(g.closest)}. Tap Show on map for every spot.</span></div>` : ""}
+    ${!rows.length ? `<p class="hint">${g.note ? esc(g.note) : state.user ? "Tips on exact spots and habits will appear here." : "Sign in (Me tab) to unlock tips on exact spots, habits and the best time to look."}</p>` : ""}
+  </div>`;
+}
 function guideHTML(s, g){
   const plant = isPlantish(s.group) || s.group === "fungi", F = g.facts || {};
-  const rows = plant ? [["Habitat","habitat"],["How it grows","growth"],[s.group === "fungi" ? "When it fruits" : "Flowering & fruiting","season"],["Size","size"],["Lifespan","lifespan"],["Fun fact","fun_fact"]]
-                     : [["Habitat","habitat"],["Diet","diet"],["Breeding season","season"],["Size","size"],["Male vs female","sexes"],["Lifespan","lifespan"],["Fun fact","fun_fact"]];
+  const rows = plant ? [["How it grows","growth"],[s.group === "fungi" ? "When it fruits" : "Flowering & fruiting","season"],["Size","size"],["Lifespan","lifespan"],["Fun fact","fun_fact"]]
+                     : [["Diet","diet"],["Breeding season","season"],["Size","size"],["Male vs female","sexes"],["Lifespan","lifespan"],["Fun fact","fun_fact"]];
   const facts = rows.filter(([, k]) => F[k] && !/^not well known\.?$/i.test(F[k]));
   return `<div class="ghead"><span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")} · Field guide</span><b class="gnm">${esc(s.name)}</b><i class="sci">${esc(s.sci)}</i></div>
     ${safetySection(s, s.danger, F.caution)}
-    <div class="gsec"><div class="label">Taxonomy</div>${g.tax.length ? `<ol class="tax">${g.tax.map(t => `<li><span>${esc(cap(t.rank))}</span><b>${esc(t.name)}</b>${t.common && t.rank !== "species" ? `<small>${esc(cap(t.common))}</small>` : ""}</li>`).join("")}</ol>` : `<p class="hint">Couldn't load the taxonomy right now.</p>`}
-      ${g.status ? `<p class="tiny">Conservation status: ${esc(g.status)}</p>` : ""}</div>
+    ${whereSection(s, g)}
+    <div class="gsec"><div class="label">Time of year</div>
+      ${sum12(g.months) ? `${monthBars(g.months, "seen")}<p class="tiny">Sightings by month, ${esc(g.where)}. Most seen: ${peakMonths(g.months)}.</p>` : `<p class="hint">Not enough sightings yet to chart the seasons.</p>`}
+      ${g.flower ? `${monthBars(g.flower, "flower")}<p class="tiny">Records of it in flower, by month. Peak flowering: ${peakMonths(g.flower)}.</p>` : ""}</div>
     <div class="gsec"><div class="label">Field notes</div>
       ${facts.length ? `<dl class="facts">${facts.map(([l, k]) => `<div><dt>${l}</dt><dd>${esc(F[k])}</dd></div>`).join("")}</dl><p class="tiny">Field notes written by AI. Tap Learn more to check the details.</p>`
         : `${g.summary ? `<p style="margin:0;font-size:14px">${esc(g.summary)}</p>` : ""}${g.note ? `<p class="hint">${esc(g.note)}</p>` : ""}`}</div>
-    <div class="gsec"><div class="label">When to look</div>
-      ${sum12(g.months) ? `${monthBars(g.months, "seen")}<p class="tiny">Sightings by month, ${esc(g.where)}. Most seen: ${peakMonths(g.months)}.</p>` : `<p class="hint">Not enough sightings yet to chart the seasons.</p>`}
-      ${g.flower ? `${monthBars(g.flower, "flower")}<p class="tiny">Records of it in flower, by month. Peak flowering: ${peakMonths(g.flower)}.</p>` : ""}</div>
     ${plant ? "" : `<div class="gsec"><div class="label">Male &amp; female</div>
       ${g.male || g.female ? `<div class="sexes">${[["Male", g.male], ["Female", g.female]].map(([l, x]) => `<figure>${x ? `<img src="${esc(x.url)}" alt="${l} ${esc(s.name)}" loading="lazy">` : `<div class="ph0"></div>`}<figcaption><b>${l}</b><small>${x ? esc(x.by) : "No tagged photo yet"}</small></figcaption></figure>`).join("")}</div>`
-        : `<p class="hint">No photos tagged male or female for this species yet.</p>`}</div>`}`;
+        : `<p class="hint">No photos tagged male or female for this species yet.</p>`}</div>`}
+    <div class="gsec"><div class="label">Taxonomy</div>${g.tax.length ? `<ol class="tax">${g.tax.map(t => `<li><span>${esc(cap(t.rank))}</span><b>${esc(t.name)}</b>${t.common && t.rank !== "species" ? `<small>${esc(cap(t.common))}</small>` : ""}</li>`).join("")}</ol>` : `<p class="hint">Couldn't load the taxonomy right now.</p>`}
+      ${g.status ? `<p class="tiny">Conservation status: ${esc(g.status)}</p>` : ""}</div>`;
 }
 function closeSheet(){ $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); sheetKey = null; }
 $("#scrim").addEventListener("click", closeSheet);

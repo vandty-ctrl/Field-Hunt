@@ -16,6 +16,10 @@ const SIGHTING_KM = 10;     // a sighting is confirmed if the species was record
 const MAX_GPS_ERROR_M = 1000;
 const FACTS_MODEL = Deno.env.get("FACTS_MODEL") ?? "claude-haiku-4-5-20251001";
 const DAILY_FACTS = Number(Deno.env.get("DAILY_FACTS") ?? 150);
+const FACTS_VERSION = 2;
+const NEAR_TAGS = ["water's edge", "ponds & lakes", "streams & rivers", "wetlands & mud", "reeds & rushes", "rock pools & shore",
+  "under logs", "under rocks", "leaf litter", "dead wood", "tree bark", "tree canopy", "shrubs & hedges", "grass & meadows",
+  "flowers", "sand & dunes", "rock walls & crevices", "soil & burrows", "caves", "buildings & walls", "open sky", "forest floor", "forest edges", "dung"];
 
 // People, pets and farm animals never count: Field Hunt is for wild species only.
 const NOT_WILD = [
@@ -198,7 +202,8 @@ Deno.serve(async (req) => {
       if (!sci || isNotWild(sci, name)) return json({ error: "No field guide for this one." }, 400);
       const sciKey = sci.toLowerCase();
       const { data: cached } = await admin.from("species_facts").select("facts").eq("sci", sciKey).maybeSingle();
-      if (cached) return json({ facts: cached.facts });
+      // Version 2 added the "where to look" details; older write-ups get refreshed
+      if (cached && Number(cached.facts?.v ?? 1) >= FACTS_VERSION) return json({ facts: cached.facts });
       // Only real species get written up
       let ok = false;
       try {
@@ -216,7 +221,15 @@ Seasons depend on hemisphere and region: name months and say which region or hem
 
 Reply with only JSON:
 {
- "habitat": "where it lives",
+ "habitat": "the broad habitat where it lives",
+ "near": ["up to 6 places it is usually found near, chosen ONLY from this list: ${NEAR_TAGS.join(", ")}"],
+ "microhabitat": "the exact spots to check, e.g. 'basks on sunny rocks beside streams' or 'hides under loose bark of dead trees'",
+ "activity": "${fungus || plant ? "n/a" : "diurnal, nocturnal, crepuscular or cathemeral"}",
+ "best_time": "${fungus ? "when and in what conditions its mushrooms appear (e.g. a few days after heavy rain in autumn)" : plant ? "the best time of year and day to see it at its most noticeable (e.g. flowers open in the morning)" : "the best time of day to find it and why (e.g. warm mornings when it basks; first two hours after dark)"}",
+ "habits": "${fungus || plant ? "what it looks like through the year and how to tell it from look-alikes" : "how it behaves: alone or in groups, how it moves, what it does when disturbed"}",
+ "signs": "${fungus || plant ? "features to spot from a distance" : "signs it is nearby: calls or songs, tracks, droppings, webs, burrows, nests, chewed leaves"}",
+ "weather": "the weather or conditions when it is easiest to find",
+ "spot_tip": "one practical, safe tip for finding or watching it. Never suggest handling it, chasing it, damaging habitat, or moving logs or rocks where venomous animals live; if lifting anything, say to put it back exactly as it was",
  ${fungus ? `"growth": "what kind of fungus it is and what it grows on (soil, wood, dung, living trees)",
  "season": "when its mushrooms or fruiting bodies appear",` : plant ? `"growth": "what kind of plant it is and how it grows (tree, shrub, vine, herb; evergreen or not)",
  "season": "when it flowers and fruits",` : `"diet": "what it eats",
@@ -234,9 +247,9 @@ Reply with only JSON:
  }
 }
 Be accurate and do not exaggerate: most species are harmless, and only well-documented risks to people count.`;
-      const f = await claude(FACTS_MODEL, [{ type: "text", text: prompt }], 700);
+      const f = await claude(FACTS_MODEL, [{ type: "text", text: prompt }], 1400);
       const clean: Record<string, string> = {};
-      for (const k of ["habitat", "growth", "diet", "season", "sexes", "size", "lifespan", "fun_fact", "caution"]) {
+      for (const k of ["habitat", "growth", "diet", "season", "sexes", "size", "lifespan", "fun_fact", "caution", "microhabitat", "best_time", "habits", "signs", "weather", "spot_tip"]) {
         if (typeof f[k] === "string" && f[k].trim()) clean[k] = f[k].trim().slice(0, 300);
       }
       const dg = f.danger && typeof f.danger === "object" ? f.danger : null;
@@ -248,7 +261,10 @@ Be accurate and do not exaggerate: most species are harmless, and only well-docu
         advice: String(dg.advice ?? "").slice(0, 300),
       } : null;
       if (!Object.keys(clean).length) return json({ error: "Couldn't write the field guide right now." }, 502);
-      const out: Record<string, unknown> = { ...clean }; if (danger) out.danger = danger;
+      const out: Record<string, unknown> = { ...clean, v: FACTS_VERSION }; if (danger) out.danger = danger;
+      const near = (Array.isArray(f.near) ? f.near : []).map((t: unknown) => String(t).toLowerCase().trim()).filter((t: string) => NEAR_TAGS.includes(t)).slice(0, 6);
+      if (near.length) out.near = near;
+      if (["diurnal", "nocturnal", "crepuscular", "cathemeral"].includes(String(f.activity))) out.activity = String(f.activity);
       await admin.from("species_facts").upsert({ sci: sciKey, name, grp: group, facts: out, model: FACTS_MODEL });
       return json({ facts: out });
     }
