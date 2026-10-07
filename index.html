@@ -273,6 +273,27 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .sexes small{font-size:10px;color:var(--muted);overflow-wrap:anywhere;line-height:1.25}
 .gload{color:var(--muted);text-align:center;padding:30px 0}
 @media (prefers-reduced-motion:reduce){.flip{transition:none}}
+.dz{display:flex;align-items:center;gap:6px;border-radius:8px;padding:4px 8px;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px;align-self:flex-start}
+.dz svg{width:15px;height:15px;flex:none}
+.dz.lv1{background:#f2c230;color:#2a1f00} .dz.lv2{background:#e8590c;color:#fff} .dz.lv3{background:#c62828;color:#fff}
+.dz.big{align-self:stretch;text-transform:none;letter-spacing:0;font-size:14px;padding:9px 11px;border-radius:12px;margin-bottom:6px;gap:10px}
+.dz.big svg{width:24px;height:24px}
+.dz.big span{display:flex;flex-direction:column}
+.dz.big small{font-weight:700;font-size:13px;opacity:.95}
+.tcard.danger3{box-shadow:0 3px 0 #c62828}
+.safety{border-radius:12px;padding:10px 12px;gap:8px}
+.safety.lv1{background:#fbf1cc;color:#2a1f00} .safety.lv2{background:#fde3d3;color:#3d1500} .safety.lv3{background:#fbd9d7;color:#3d0505}
+.safety .label{color:inherit;opacity:.8}
+.safehead{display:flex;gap:10px;align-items:flex-start}
+.safehead svg{width:26px;height:26px;flex:none}
+.safety.lv1 .safehead svg{color:#a07800} .safety.lv2 .safehead svg{color:#e8590c} .safety.lv3 .safehead svg{color:#c62828}
+.safehead b{display:block;font-size:16px}
+.safehead small{font-weight:800;font-size:13px}
+.hz{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px}
+.safeadv{margin:0;font-size:13px}
+.safety .tiny{color:inherit;opacity:.85}
+.safenote{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:800;color:#c62828;grid-column:1/-1}
+.safenote svg{width:18px;height:18px;flex:none}
 .myf span{position:absolute;inset:auto 0 0 0;padding:16px 6px 5px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.7));color:#fff;font-size:12px;font-weight:800;text-align:left;line-height:1.15}
 
 .board{display:flex;flex-direction:column;gap:6px}
@@ -571,7 +592,7 @@ function buildRadius(){
   $("#radius").innerHTML = opts.map(o => `<option value="${o.v}" ${o === best ? "selected" : ""}>${o.t}</option>`).join("");
   $$("#unitSeg button, #unitSeg2 button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.u === state.units)));
 }
-function setUnits(u){ state.units = u; ls.set("fh-units", u); buildRadius(); drawHere(); }
+function setUnits(u){ state.units = u; ls.set("fh-units", u); buildRadius(); drawHere(); renderGrid(); }
 $("#unitSeg").addEventListener("click", e => { const b = e.target.closest("button[data-u]"); if (b) setUnits(b.dataset.u); });
 $("#unitSeg2").addEventListener("click", e => { const b = e.target.closest("button[data-u]"); if (b) setUnits(b.dataset.u); });
 $("#radius").addEventListener("change", e => { state.radiusKm = +e.target.value; ls.set("fh-radius", state.radiusKm); drawHere(); fitSearch(); });
@@ -756,18 +777,18 @@ async function search(){
     const put = s => { const k = s.sci.toLowerCase(); const cur = bySci.get(k);
       if (!cur){ bySci.set(k, s); return; }
       cur.count = Math.max(cur.count, s.count); cur.sources = [...new Set([...cur.sources, ...s.sources])];
-      cur.inatId ||= s.inatId; cur.gbifKey ||= s.gbifKey; cur.photo ||= s.photo;
+      cur.inatId ||= s.inatId; cur.gbifKey ||= s.gbifKey; cur.photo ||= s.photo; cur.anc ||= s.anc; cur.lineage = [...new Set([...(cur.lineage || []), ...(s.lineage || [])])];
       if (cur.name === cur.sci && s.name !== s.sci) cur.name = s.name;
       if (s.group === "trees") cur.group = "trees"; };
     for (const { g, counts } of results) for (const c of counts){ const t = c.taxon; if (!t || isNotWild(t.name, t.preferred_common_name)) continue;
-      put({ inatId:t.id, name: t.preferred_common_name ? cap(t.preferred_common_name) : t.name, sci:t.name, group:g, photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", count:c.count, sources:["iNaturalist"] }); }
+      put({ inatId:t.id, anc: t.ancestor_ids || (t.ancestry ? String(t.ancestry).split("/").map(Number) : null), name: t.preferred_common_name ? cap(t.preferred_common_name) : t.name, sci:t.name, group:g, photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", count:c.count, sources:["iNaturalist"] }); }
     const gbPins = [];
     for (const { g, gb } of results){
       const tally = new Map();
       for (const r of gb){
         if (r.datasetKey === INAT_GBIF_DATASET || !r.species || !r.speciesKey || notWildRecord(r)) continue;
         const grp = isPlantish(g) ? g : (GBIF_CLASS[r.class] || GBIF_CLASS[r.order] || GBIF_CLASS[r.phylum] || GBIF_CLASS[r.kingdom] || g);
-        const t = tally.get(r.speciesKey) || { gbifKey:r.speciesKey, sci:r.species, name:r.vernacularName ? cap(r.vernacularName) : r.species, group:grp, photo:"", count:0, sources:["GBIF"] };
+        const t = tally.get(r.speciesKey) || { gbifKey:r.speciesKey, sci:r.species, lineage:[r.kingdom, r.phylum, r.class, r.order, r.family, r.genus].filter(Boolean), name:r.vernacularName ? cap(r.vernacularName) : r.species, group:grp, photo:"", count:0, sources:["GBIF"] };
         t.count++;
         if (!t.photo && r.media?.[0]?.identifier && /^https:/.test(r.media[0].identifier)) t.photo = r.media[0].identifier;
         tally.set(r.speciesKey, t);
@@ -783,7 +804,7 @@ async function search(){
       await pool(bare, 4, async s => { try{
         const r = await getJSON(`${INAT}/taxa?q=${encodeURIComponent(s.sci)}&rank=species&per_page=3&locale=en`);
         const t = (r.results || []).find(x => x.name.toLowerCase() === s.sci.toLowerCase()); if (!t) return;
-        s.inatId = t.id; if (t.preferred_common_name) s.name = cap(t.preferred_common_name);
+        s.inatId = t.id; s.anc = t.ancestor_ids || s.anc; if (t.preferred_common_name) s.name = cap(t.preferred_common_name);
         s.photo = t.default_photo?.medium_url || t.default_photo?.square_url || s.photo;
         if (t.iconic_taxon_name && ICONIC[t.iconic_taxon_name] && s.group !== "trees") s.group = ICONIC[t.iconic_taxon_name];
       }catch{} });
@@ -794,6 +815,9 @@ async function search(){
       .filter(s => state.groups.has(s.group) && !isNotWild(s.sci, s.name))
       .sort((a,b) => b.count - a.count);
     mergeCustom();
+    setStatus("Checking safety info…");
+    await applySafety(state.species);
+    if (seq !== seqN) return;
 
     obsLayer.clearLayers(); let pins = 0;
     const gOf = new Map(state.species.map(s => [s.sci.toLowerCase(), s]));
@@ -838,9 +862,11 @@ function addCustom(t, groupHint, quiet){
   const name = t.preferred_common_name ? cap(t.preferred_common_name) : t.name; const key = keyOf(t.id);
   const existing = state.species.find(s => s.key === key || s.sci.toLowerCase() === String(t.name).toLowerCase());
   if (existing){ if (!quiet) toast(`${esc(existing.name)} is already on your cards`); return existing.key; }
-  const rec = { key, id:t.id, inatId:t.id, name, sci:t.name, group: ICONIC[t.iconic_taxon_name] || groupHint || "other", photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", lat:state.loc.lat, lng:state.loc.lng, at:new Date().toISOString() };
+  const rec = { key, id:t.id, inatId:t.id, anc: t.ancestor_ids || null, name, sci:t.name, group: ICONIC[t.iconic_taxon_name] || groupHint || "other", photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", lat:state.loc.lat, lng:state.loc.lng, at:new Date().toISOString() };
   ls.set("fh-custom", [...ls.get("fh-custom", []).filter(c => keyOf(c.key ?? c.id) !== key), rec]);
-  state.species = [{ ...rec, count:0, custom:true, sources:["Added by you"] }, ...state.species];
+  const sp = { ...rec, count:0, custom:true, sources:["Added by you"] };
+  state.species = [sp, ...state.species];
+  sp.danger = dangerOf(sp); applySafety([sp]).then(() => { renderGrid(); if (sheetKey === key) openSheet(key); });
   if (!quiet) toast(`Added <b>${esc(name)}</b> to this area`);
   return key;
 }
@@ -852,6 +878,191 @@ $("#hits").addEventListener("click", e => {
   state.view = "all"; $$("#listSeg button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === "all"))); renderGrid();
 });
 function removeCustom(key){ ls.set("fh-custom", ls.get("fh-custom", []).filter(c => keyOf(c.key ?? c.id) !== key)); state.species = state.species.filter(s => !(s.custom && s.key === key)); closeSheet(); renderGrid(); }
+
+/* ---------- safety: danger warnings on cards ---------- */
+// Built-in rules for well-known hazards, matched against the species' family tree (order, family, genus) or its scientific name.
+// Distances follow common park and wildlife-agency guidance. The AI field notes can add warnings, but never lower one of these.
+// [taxon names, level 1 caution | 2 danger | 3 extreme, hazard types, keep-back distance in metres (0 = look, don't touch), headline, what to do]
+const SNAKE_FAMILIES = ["Serpentes","Viperidae","Elapidae","Colubridae","Natricidae","Dipsadidae","Lamprophiidae","Pythonidae","Boidae","Typhlopidae","Leptotyphlopidae","Atractaspididae","Homalopsidae","Pareidae","Acrochordidae","Psammophiidae","Pseudoxyrhophiidae","Xenodermidae","Tropidophiidae","Uropeltidae","Cylindrophiidae","Aniliidae","Anomalepididae","Xenopeltidae","Calamariidae","Sibynophiidae","Prosymnidae","Lycodontidae"];
+const SNAKE_ADVICE = "Stay back, never touch, catch or corner it, and let it move away. If bitten: keep still and calm, call emergency services straight away, and don't cut, suck or ice the bite.";
+const RULES = [
+  // snakes & other reptiles
+  [SNAKE_FAMILIES, 1, ["bites"], 2, "Snake", "Many snakes are harmless, but some are venomous and they can look alike. Treat every snake as dangerous. " + SNAKE_ADVICE],
+  [["Viperidae","Elapidae","Atractaspididae","Dispholidus","Thelotornis","Rhabdophis"], 3, ["venomous"], 3, "Venomous snake", "A bite is a medical emergency. " + SNAKE_ADVICE],
+  [["Python","Malayopython","Eunectes"], 2, ["bites"], 3, "Large constrictor", "Big constrictors bite hard and can wrap around a person. Keep well back."],
+  [["Heloderma"], 3, ["venomous"], 3, "Venomous lizard", "Its bite is venomous and it holds on. Never touch or handle it."],
+  [["Varanus komodoensis"], 3, ["venomous","aggressive"], 10, "Komodo dragon", "Can charge fast and has a venomous bite. Stay well back and follow ranger instructions."],
+  [["Varanus"], 1, ["bites"], 3, "Monitor lizard", "Bites and scratches hard if cornered. Don't approach or feed it."],
+  [["Crocodylidae","Alligatoridae","Gavialidae","Crocodylus","Alligator"], 3, ["aggressive"], 5, "Crocodilian", "Can lunge from the water very fast. Stay at least 5 m from the water's edge, never feed them, and don't swim, wade or clean fish where they live."],
+  [["Chelydridae","Chelydra","Macrochelys"], 1, ["bites"], 2, "Snapping turtle", "Has a powerful bite and a long reach. Never pick it up."],
+  // amphibians
+  [["Bufonidae"], 1, ["poisonous"], 0, "Toxic skin", "Toad skin glands make toxins. Don't handle it, wash your hands if you touch one, and keep pets away."],
+  [["Rhinella marina"], 2, ["poisonous"], 0, "Cane toad", "Its toxin can make people sick and can kill pets. Don't touch it; wash hands and eyes if you do."],
+  [["Dendrobatidae","Phyllobates"], 2, ["poisonous"], 0, "Poison frog", "Skin toxins can be dangerous. Never touch it."],
+  [["Taricha","Salamandra"], 2, ["poisonous"], 0, "Toxic skin", "Skin toxins are dangerous if swallowed and irritate eyes. Don't handle it."],
+  // spiders, scorpions, ticks & other arthropods
+  [["Araneae"], 1, ["bites"], 0, "Spider", "Most spiders are harmless, but don't touch or handle them."],
+  [["Latrodectus"], 3, ["venomous"], 0, "Widow spider", "Redbacks and black widows have a dangerous bite. Never touch. If bitten, put ice on it and get medical help."],
+  [["Atrax","Hadronyche"], 3, ["venomous"], 1, "Funnel-web spider", "One of the world's most dangerous spiders. Never touch. A bite is an emergency: call for help straight away and keep still."],
+  [["Phoneutria"], 3, ["venomous"], 1, "Wandering spider", "A dangerous bite. Never touch. Get medical help if bitten."],
+  [["Loxosceles","Sicarius"], 2, ["venomous"], 0, "Recluse spider", "The bite can cause a serious wound. Never touch. Get medical help if bitten."],
+  [["Missulena","Cheiracanthium"], 2, ["venomous"], 0, "Venomous spider", "Painful bite. Never touch."],
+  [["Theraphosidae"], 1, ["bites","irritant"], 0, "Tarantula", "Can bite and flick itchy hairs. Don't handle it."],
+  [["Scorpiones"], 2, ["stings"], 0, "Scorpion", "The sting is very painful. Never touch; shake out shoes and gloves where they live."],
+  [["Buthidae"], 3, ["venomous","stings"], 0, "Venomous scorpion", "Some scorpions in this family are dangerous, especially to children. Never touch. Get medical help if stung."],
+  [["Ixodida"], 1, ["disease"], 0, "Tick", "Ticks can spread diseases such as Lyme disease. Tuck in clothes, use repellent and check your skin after walks."],
+  [["Chilopoda"], 1, ["venomous","bites"], 0, "Centipede", "Can give a painful venomous bite. Don't touch."],
+  [["Scolopendra"], 2, ["venomous","bites"], 0, "Giant centipede", "A very painful venomous bite. Never touch."],
+  [["Diplopoda"], 1, ["irritant"], 0, "Millipede", "Some release chemicals that burn or stain skin. Don't handle; wash your hands if you do."],
+  // insects
+  [["Vespidae"], 2, ["stings"], 5, "Wasp or hornet", "Stings hurt and can cause severe allergic reactions. Stay well away from nests. If stung near the mouth or throat, or if breathing gets hard, call emergency services."],
+  [["Apis","Bombus"], 1, ["stings"], 3, "Bee", "Can sting if you get close to the hive or nest. Call emergency services if someone has trouble breathing after a sting."],
+  [["Solenopsis","Myrmecia"], 2, ["stings"], 1, "Stinging ants", "Painful stings, and some people react badly. Watch where you stand and keep away from nests."],
+  [["Megalopygidae","Limacodidae","Thaumetopoea","Euproctis","Hylesia"], 2, ["irritant"], 0, "Stinging caterpillar", "Hairs or spines cause painful stings and rashes. Never touch fuzzy caterpillars."],
+  [["Lonomia"], 3, ["venomous"], 0, "Venomous caterpillar", "Contact can be dangerous. Never touch. Get medical help after any contact."],
+  [["Reduviidae"], 1, ["bites"], 0, "Assassin bug", "Gives a painful bite. Don't handle it."],
+  [["Triatoma"], 2, ["bites","disease"], 0, "Kissing bug", "Can spread Chagas disease. Don't touch it."],
+  [["Meloidae"], 1, ["irritant","poisonous"], 0, "Blister beetle", "Its body fluid blisters skin. Don't touch."],
+  // molluscs & crustaceans
+  [["Conidae"], 3, ["venomous"], 0, "Cone snail", "Its sting can be deadly. Never pick up a cone shell with an animal inside."],
+  [["Hapalochlaena"], 3, ["venomous"], 0, "Blue-ringed octopus", "Its bite can be deadly. Never touch. Call emergency services immediately if bitten."],
+  [["Lissachatina","Achatina"], 1, ["disease"], 0, "Giant African land snail", "Can carry rat lungworm. Don't handle; wash hands well if you do."],
+  [["Birgus"], 1, ["bites"], 2, "Coconut crab", "Powerful claws. Keep fingers away."],
+  // fish
+  [["Myliobatiformes","Dasyatidae","Urolophidae","Potamotrygonidae"], 2, ["venomous"], 0, "Stingray", "A venomous tail spine. Shuffle your feet when wading and never touch one."],
+  [["Synanceiidae","Synanceia"], 3, ["venomous"], 0, "Stonefish", "Spines can deliver a dangerous sting. Wear shoes in rocky shallows. Hot water and emergency help if stung."],
+  [["Pterois","Scorpaenidae"], 2, ["venomous"], 0, "Venomous spines", "Spines give a very painful sting. Look, don't touch."],
+  [["Plotosidae"], 2, ["venomous"], 0, "Catfish spines", "Venomous fin spines. Don't handle."],
+  [["Tetraodontidae","Diodontidae"], 2, ["poisonous"], 0, "Poisonous to eat", "Its organs hold a deadly toxin. Never eat it, and don't let pets eat it."],
+  [["Carcharhinidae","Lamnidae","Sphyrnidae"], 3, ["aggressive"], 30, "Shark", "Stay out of the water if one is nearby, and follow beach warnings."],
+  [["Electrophorus"], 3, ["aggressive"], 3, "Electric eel", "Can give a powerful shock. Keep out of the water."],
+  [["Muraenidae","Serrasalmidae"], 1, ["bites"], 1, "Sharp bite", "Keep hands out of the water nearby."],
+  // birds
+  [["Casuarius"], 3, ["aggressive"], 10, "Cassowary", "Can kick with dagger-like claws. Never approach or feed it. If it comes close, back away slowly and put something like a backpack between you."],
+  [["Struthio"], 2, ["aggressive"], 10, "Ostrich", "Can kick hard. Never approach."],
+  [["Dromaius"], 1, ["aggressive"], 5, "Emu", "Can kick. Don't approach or feed."],
+  [["Cygnus","Anser","Branta"], 1, ["aggressive"], 5, "Defends its nest", "Swans and geese charge and bite to protect nests and young. Give them space."],
+  [["Gymnorhina tibicen","Vanellus miles"], 1, ["aggressive"], 10, "Swoops in nesting season", "May swoop at your head in spring. Wear a hat, walk calmly away from the nest, and don't wave your arms."],
+  // mammals
+  [["Ursidae"], 3, ["aggressive"], 100, "Bear", "Stay at least 100 m away. Never approach or feed it. Make noise on trails, carry bear spray where advised, and never run."],
+  [["Canis lupus"], 2, ["aggressive"], 100, "Wolf or dingo", "Stay well back, never feed, and keep children close."],
+  [["Canis latrans"], 1, ["aggressive","disease"], 25, "Coyote", "Never feed. If one comes close, make yourself look big and noisy."],
+  [["Panthera","Puma","Acinonyx","Neofelis"], 3, ["aggressive"], 100, "Big cat", "If you meet one: don't run, make yourself look big, keep children close and back away slowly."],
+  [["Lynx","Leopardus","Felis"], 1, ["bites"], 25, "Wild cat", "Don't approach or try to touch it."],
+  [["Bison","Syncerus","Bos"], 3, ["aggressive"], 25, "Wild cattle", "Can charge very fast. Stay at least 25 m away, more if it's agitated."],
+  [["Alces"], 3, ["aggressive"], 25, "Moose", "Can charge and kick, especially cows with calves and bulls in autumn. Stay at least 25 m away."],
+  [["Cervus","Rangifer"], 2, ["aggressive"], 25, "Large deer", "Males can charge during the autumn rut, and mothers defend calves. Stay at least 25 m away."],
+  [["Odocoileus","Capreolus","Dama"], 1, ["aggressive"], 25, "Deer", "Give them space, especially mothers with fawns and males in the rut."],
+  [["Hippopotamus","Loxodonta","Elephas","Rhinocerotidae"], 3, ["aggressive"], 100, "Large dangerous animal", "Never approach on foot. Stay at least 100 m away and follow ranger instructions."],
+  [["Sus scrofa","Phacochoerus"], 2, ["aggressive"], 25, "Wild pig", "Can charge and slash with tusks. Back away and get behind something solid."],
+  [["Macropus giganteus","Osphranter rufus","Osphranter robustus","Macropus fuliginosus"], 1, ["aggressive"], 10, "Large kangaroo", "Big males can kick and scratch. Don't approach or feed them."],
+  [["Ornithorhynchus"], 2, ["venomous"], 0, "Venomous spur", "Males have a venomous spur on their back legs. Never handle."],
+  [["Procyon","Mephitidae","Vulpes","Chiroptera"], 1, ["disease","bites"], 10, "Can carry rabies", "Never touch or feed. If bitten or scratched, wash the wound well and see a doctor the same day."],
+  [["Macaca","Papio","Chlorocebus"], 2, ["aggressive","disease"], 10, "Monkey", "Can bite and spread disease. Never feed or approach, and keep food out of sight."],
+  [["Gulo","Taxidea","Meles"], 1, ["bites"], 25, "Can bite hard", "Give it plenty of space."],
+  [["Otariidae","Phocidae","Odobenidae"], 1, ["bites","aggressive"], 30, "Seal or sea lion", "Can bite. Stay at least 30 m away (local rules may say more) and never come between it and the water."],
+  [["Erethizon","Hystrix"], 1, ["irritant"], 2, "Quills", "Sharp quills. Keep back and keep dogs away."],
+  // plants
+  [["Toxicodendron"], 2, ["irritant"], 0, "Rash-causing plant", "Poison ivy, oak and sumac oil causes an itchy, blistering rash. Don't touch. Wash skin and clothes with soap if you brush against it."],
+  [["Heracleum mantegazzianum","Heracleum sosnowskyi","Pastinaca sativa"], 3, ["irritant"], 1, "Burning sap", "Sap plus sunlight causes severe burns and blisters. Don't touch. Wash skin right away and keep it out of the sun if you do."],
+  [["Dendrocnide"], 3, ["irritant"], 1, "Stinging tree", "Its hairs cause extremely painful stings that can last for months. Never touch."],
+  [["Urtica","Laportea"], 1, ["irritant"], 0, "Stinging hairs", "Touching it gives a stinging rash."],
+  [["Conium","Cicuta","Aconitum","Veratrum","Gelsemium","Atropa","Ricinus","Abrus","Nerium","Taxus","Hippomane"], 3, ["poisonous"], 0, "Deadly if eaten", "Never eat any part of it, and wash hands after touching. Call poison help or emergency services if any is swallowed."],
+  [["Digitalis","Datura","Brugmansia","Phytolacca","Convallaria","Macrozamia","Cycas","Zamia","Lepidozamia","Toxicoscordion"], 2, ["poisonous"], 0, "Poisonous", "Poisonous if eaten. Don't pick or eat any part, and keep pets away."],
+  [["Lantana","Solanum dulcamara","Arum","Euphorbia"], 1, ["poisonous","irritant"], 0, "Toxic berries or sap", "Don't eat the berries; the sap can irritate skin and eyes."],
+  [["Cactaceae","Mucuna"], 1, ["irritant"], 0, "Spines", "Tiny barbed spines or hairs stick in skin. Look, don't touch."],
+  // fungi
+  [["Fungi"], 1, ["poisonous"], 0, "Never eat wild mushrooms", "Many mushrooms look alike and some are deadly. Never eat a wild mushroom, and wash your hands after touching one."],
+  [["Amanita","Galerina","Lepiota","Gyromitra","Conocybe"], 3, ["poisonous"], 0, "Deadly mushroom", "Some of the most poisonous mushrooms in the world are in this group. Never eat; wash hands after touching. Call poison help if any is swallowed."],
+  [["Cortinarius","Inocybe","Clitocybe","Omphalotus","Chlorophyllum molybdites","Entoloma"], 2, ["poisonous"], 0, "Poisonous mushroom", "Can cause serious poisoning if eaten. Never eat wild mushrooms."]
+];
+const DANGER_LEVELS = ["", "Caution", "Danger", "Extreme danger"];
+const HAZARDS = {
+  venomous: ["Venomous", "Can inject venom with a bite, sting or spine."],
+  poisonous: ["Poisonous", "Harmful if eaten, and sometimes if touched."],
+  stings: ["Stings", "Can sting, which is painful and can cause allergic reactions."],
+  bites: ["Bites", "Can bite or pinch if handled or cornered."],
+  aggressive: ["Can attack", "May charge, kick or attack if approached, especially near young or nests."],
+  irritant: ["Skin irritant", "Hairs, spines, sap or oils can burn, sting or cause a rash."],
+  disease: ["Carries disease", "Can spread illness to people through bites, scratches or touch."]
+};
+const HAZARD_ORDER = ["venomous","poisonous","aggressive","stings","irritant","disease","bites"];
+const sortedTypes = d => [...d.types].sort((a, b) => HAZARD_ORDER.indexOf(a) - HAZARD_ORDER.indexOf(b));
+const lineageOf = s => [...(s.lineage || []), s.sci || "", String(s.sci || "").split(" ")[0]];
+function rulesDanger(s){
+  const names = new Set(lineageOf(s)), sci = String(s.sci || "").toLowerCase();
+  if (s.group === "fungi") names.add("Fungi");
+  let d = null;
+  for (const [taxa, level, types, dist, head, advice] of RULES){
+    if (!taxa.some(n => names.has(n) || sci === n.toLowerCase() || sci.startsWith(n.toLowerCase() + " "))) continue;
+    if (!d) d = { level, types:new Set(types), dist, head, advice };
+    else {
+      types.forEach(t => d.types.add(t)); d.dist = Math.max(d.dist, dist);
+      if (level > d.level){ d.level = level; d.head = head; d.advice = advice; }
+    }
+  }
+  return d;
+}
+// Combine rules with any AI field-note warning: the more cautious one always wins
+function dangerOf(s, factsMap){
+  const d = rulesDanger(s);
+  const ai = (factsMap || ls.get("fh-facts", {}))[String(s.sci || "").toLowerCase()]?.danger;
+  const lv = { caution:1, danger:2, extreme:3 }[ai?.level] || 0;
+  if (!lv || !Array.isArray(ai.types) || !ai.types.length) return d;
+  const types = ai.types.filter(t => HAZARDS[t]);
+  if (!types.length) return d;
+  if (!d) return { level:lv, types:new Set(types), dist: Math.max(0, Math.min(200, +ai.distance_m || 0)), head: HAZARDS[types[0]][0], advice: String(ai.advice || ""), ai:true };
+  types.forEach(t => d.types.add(t));
+  d.dist = Math.max(d.dist, Math.min(200, +ai.distance_m || 0));
+  if (lv > d.level){ d.level = lv; if (ai.advice) d.advice = String(ai.advice); }
+  return d;
+}
+const fmtKeep = m => { if (!m) return ""; if (state.units === "mi"){ const ft = m * 3.281; return `${ft >= 30 ? Math.round(ft / 5) * 5 : Math.round(ft)}\u00a0ft`; } return `${m}\u00a0m`; };
+const fmtKeepBoth = m => m ? `${m} m (${Math.round(m * 3.281 / (m >= 10 ? 5 : 1)) * (m >= 10 ? 5 : 1)} ft)` : "";
+const keepText = d => d.dist ? `keep ${fmtKeep(d.dist)} away` : "don't touch";
+const HELP = {
+  US:["911","Poison Control 1-800-222-1222"], CA:["911","Poison Centre 1-844-764-7669"], MX:["911",""], AU:["000","Poisons Information 13 11 26"],
+  NZ:["111","Poison Centre 0800 764 766"], GB:["999","NHS 111"], IE:["112 or 999",""], IN:["112",""], JP:["119",""], ZA:["10177 or 112",""]
+};
+const EU = ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE","NO","IS","CH"];
+function helpLine(){
+  const c = state.loc?.country || ""; const h = HELP[c] || (EU.includes(c) ? ["112",""] : null);
+  return h ? `Emergency: <b>${esc(h[0])}</b>${h[1] ? ` · ${esc(h[1])}` : ""}` : "In an emergency, call your local emergency number.";
+}
+const WARN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.5h.01"/></svg>';
+const dzClass = d => `dz lv${d.level}`;
+function dangerBand(d, big){
+  if (!d) return "";
+  const types = sortedTypes(d).slice(0, 2).map(t => HAZARDS[t][0]).join(" · ");
+  return big
+    ? `<div class="${dzClass(d)} big" role="note">${WARN}<span><b>${DANGER_LEVELS[d.level]}: ${esc(d.head)}</b><small>${esc(types)} · ${keepText(d)}</small></span></div>`
+    : `<div class="${dzClass(d)}" role="note" aria-label="${DANGER_LEVELS[d.level]}: ${esc(types)}, ${keepText(d)}">${WARN}<span>${esc(types)} · ${d.dist ? fmtKeep(d.dist) : "no\u00a0touch"}</span></div>`;
+}
+function safetySection(s, d, aiCaution){
+  const plant = isPlantish(s.group);
+  if (!d) return `<div class="gsec"><div class="label">Safety</div><p class="hint" style="margin:0">${plant ? "No known hazards. Still, never eat wild plants or berries unless an expert says they're safe." : s.group === "fungi" ? "Never eat wild mushrooms." : "No known danger to people. Still, give wild animals space and never feed them."}${aiCaution ? ` ${esc(aiCaution)}` : ""}</p></div>`;
+  return `<div class="gsec safety lv${d.level}"><div class="label">Safety</div>
+    <div class="safehead">${WARN}<div><b>${DANGER_LEVELS[d.level]}: ${esc(d.head)}</b><small>${d.dist ? `Keep at least ${fmtKeepBoth(d.dist)} away` : "Look, but don't touch"}</small></div></div>
+    <ul class="hz">${sortedTypes(d).map(t => `<li><b>${HAZARDS[t][0]}</b> ${HAZARDS[t][1]}</li>`).join("")}</ul>
+    <p class="safeadv"><b>What to do:</b> ${esc(d.advice)}${aiCaution && !d.advice.includes(aiCaution) ? ` ${esc(aiCaution)}` : ""}</p>
+    <p class="tiny">${helpLine()}</p></div>`;
+}
+
+// Find each species' order, family and genus names from iNaturalist (cached on the phone)
+async function enrichLineage(list){
+  const need = list.filter(s => !s.lineage && Array.isArray(s.anc) && s.anc.length);
+  if (!need.length) return;
+  const cache = ls.get("fh-anc", {});
+  const ids = [...new Set(need.flatMap(s => s.anc))].filter(id => !(id in cache));
+  const chunks = []; for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i + 30));
+  await pool(chunks, 3, async ch => {
+    try{ const r = await getJSON(`${INAT}/taxa/${ch.join(",")}?locale=en`); for (const t of r.results || []) cache[t.id] = [t.name, t.rank]; }catch{}
+  });
+  const keys = Object.keys(cache); if (keys.length > 8000) keys.slice(0, keys.length - 8000).forEach(k => delete cache[k]);
+  ls.set("fh-anc", cache);
+  for (const s of need) s.lineage = s.anc.map(id => cache[id]?.[0]).filter(Boolean);
+}
+async function applySafety(list){ try{ await enrichLineage(list); }catch{} const fm = ls.get("fh-facts", {}); for (const s of list) s.danger = dangerOf(s, fm); }
 
 /* ---------- field cards ---------- */
 $("#listSeg").addEventListener("click", e => { const b = e.target.closest("button[data-v]"); if (!b) return; state.view = b.dataset.v; $$("#listSeg button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderGrid(); });
@@ -866,10 +1077,10 @@ function renderGrid(){
   if (!rows.length){ grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${state.view === "found" ? "No cards collected here yet. Tap a card and photograph it when you spot it." : "You've collected every card here. Try more groups or a bigger distance."}</div>`; return; }
   grid.innerHTML = rows.slice(0, state.showN).map(s => {
     const f0 = state.finds.get(s.key), f = isGot(f0) ? f0 : null, r = rarityOf(s);
-    return `<button class="tcard r-${r.id} g-${s.group}${f ? " got" : ""}" type="button" data-k="${esc(s.key)}" aria-label="${esc(s.name)}, ${r.label}${f ? ", collected" : ""}">
+    return `<button class="tcard r-${r.id} g-${s.group}${f ? " got" : ""}" type="button" data-k="${esc(s.key)}" aria-label="${esc(s.name)}, ${r.label}${s.danger ? `, ${DANGER_LEVELS[s.danger.level]}` : ""}${f ? ", collected" : ""}">
       <div class="ph">${s.photo ? `<img loading="lazy" src="${esc(s.photo)}" alt="">` : ""}<span class="rib">${r.label}</span><span class="pts">${f ? "Got" : "+" + r.pts}</span>
         ${f ? (isSighting(f) ? `<span class="sightbadge">${EYE}</span><span class="found-tag">${EYE.replace('stroke-width="2.2"','stroke-width="3"')}Sighted</span>` : `<img class="stamp" src="${esc(findURL(f))}" alt=""><span class="found-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Collected</span>`) : ""}</div>
-      <div class="body"><span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")}</span><span class="nm">${esc(s.name)}</span><span class="sci">${esc(s.sci)}</span></div></button>`;
+      <div class="body">${dangerBand(s.danger)}<span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")}</span><span class="nm">${esc(s.name)}</span><span class="sci">${esc(s.sci)}</span></div></button>`;
   }).join("") + (rows.length > state.showN ? `<button class="btn soft more" id="moreBtn" type="button">Show ${Math.min(40, rows.length - state.showN)} more</button>` : "");
 }
 $("#grid").addEventListener("click", e => {
@@ -891,7 +1102,7 @@ function openSheet(key, fromGrid){
     <div class="flipwrap"><div class="flip${sheetBack ? " flipped" : ""} g-${s.group}" id="flip" role="button" tabindex="0" aria-pressed="${sheetBack}" aria-label="Flip the ${esc(s.name)} card">
       <div class="face front" aria-hidden="${sheetBack}">
         <div class="fimg">${s.photo ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}">` : ""}<span class="rib">${r.label}</span><span class="pts">${f ? "Got" : "+" + r.pts + " XP"}</span><span class="fliphint">${FLIP_ICON}Flip for field guide</span></div>
-        <div class="fbody"><span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")}</span><h2 id="sheetTitle">${esc(s.name)}</h2><div class="sci">${esc(s.sci)}</div>
+        <div class="fbody">${dangerBand(s.danger, true)}<span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")}</span><h2 id="sheetTitle">${esc(s.name)}</h2><div class="sci">${esc(s.sci)}</div>
           <p class="hint">${s.custom ? "You added this species to this area." : `${s.count} record${s.count === 1 ? "" : "s"} within ${fmtDist(state.radiusKm)}`} · From ${esc(s.sources.join(" + "))}</p></div>
       </div>
       <div class="face back" aria-hidden="${!sheetBack}"><div class="guide" id="guide"><div class="gload">Opening the field guide…</div></div></div>
@@ -901,6 +1112,7 @@ function openSheet(key, fromGrid){
       ${f ? `<div class="mine-photo"><img src="${esc(thumbURL(f))}" alt="${isSighting(f) ? "" : "Your photo"}"><div><b>${isSighting(f) ? "Sighted" : "Collected"} ${esc(new Date(f.at).toLocaleDateString())}</b><br><span class="hint">+${f.points || 0} XP earned${f.userNote ? ` · “${esc(f.userNote)}”` : ""}</span></div></div>` : ""}
       <div id="sightRow"></div>
       <div class="acts" id="sheetActs">
+        ${s.danger ? `<div class="safenote">${WARN}<span>${s.danger.dist ? `Stay ${fmtKeep(s.danger.dist)} back and use your camera's zoom.` : "Look, don't touch. Use your camera's zoom."}${s.danger.level >= 2 ? " Logging a sighting is fine too." : ""}</span></div>` : ""}
         <button class="btn big sun" id="shootBtn" type="button" style="grid-column:1/-1">${isSighting(f) ? "Add a photo for full points" : f ? "Retake photo" : f0?.verdict === "no" ? "Try another photo" : "I found it! Take a photo"}</button>
         ${!f ? `<button class="btn soft" id="sightBtn" type="button" style="grid-column:1/-1">${EYE}Saw it, but no photo</button>` : ""}
         <button class="btn soft" id="mapBtn" type="button">Show on map</button>
@@ -916,7 +1128,12 @@ function openSheet(key, fromGrid){
   flip.onclick = () => setFace(!sheetBack);
   flip.onkeydown = e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); setFace(!sheetBack); } };
   if (fromGrid) setTimeout(() => { if (sheetKey === key && $("#flip") === flip) setFace(true); }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 420);
-  loadGuide(s).then(g => { if (sheetKey === key && $("#guide")) $("#guide").innerHTML = guideHTML(s, g); });
+  loadGuide(s).then(g => {
+    const before = s.danger?.level || 0; s.danger = dangerOf(s);
+    if (sheetKey === key && $("#guide")) $("#guide").innerHTML = guideHTML(s, g);
+    if ((s.danger?.level || 0) !== before){ renderGrid(); const band = $(".fbody .dz"); const fresh = dangerBand(s.danger, true);
+      if (band) band.outerHTML = fresh; else $(".fbody")?.insertAdjacentHTML("afterbegin", fresh); }
+  });
   $("#shootBtn").onclick = () => { state.pending = key; $("#cam").value = ""; $("#cam").click(); };
   $("#sightBtn")?.addEventListener("click", () => openSightPanel(key));
   $("#mapBtn").onclick = () => { closeSheet(); showOnMap(key); };
@@ -982,7 +1199,7 @@ function guideHTML(s, g){
                      : [["Habitat","habitat"],["Diet","diet"],["Breeding season","season"],["Size","size"],["Male vs female","sexes"],["Lifespan","lifespan"],["Fun fact","fun_fact"]];
   const facts = rows.filter(([, k]) => F[k] && !/^not well known\.?$/i.test(F[k]));
   return `<div class="ghead"><span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")} · Field guide</span><b class="gnm">${esc(s.name)}</b><i class="sci">${esc(s.sci)}</i></div>
-    ${F.caution ? `<div class="caution">Watch out: ${esc(F.caution)}</div>` : ""}
+    ${safetySection(s, s.danger, F.caution)}
     <div class="gsec"><div class="label">Taxonomy</div>${g.tax.length ? `<ol class="tax">${g.tax.map(t => `<li><span>${esc(cap(t.rank))}</span><b>${esc(t.name)}</b>${t.common && t.rank !== "species" ? `<small>${esc(cap(t.common))}</small>` : ""}</li>`).join("")}</ol>` : `<p class="hint">Couldn't load the taxonomy right now.</p>`}
       ${g.status ? `<p class="tiny">Conservation status: ${esc(g.status)}</p>` : ""}</div>
     <div class="gsec"><div class="label">Field notes</div>

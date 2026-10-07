@@ -225,16 +225,32 @@ Reply with only JSON:
  "size": "typical size",
  "lifespan": "typical lifespan, if known",
  "fun_fact": "one surprising true fact",
- "caution": "only if it is venomous, poisonous (including to eat or touch), stings, bites or is protected by law; otherwise empty"
-}`;
+ "caution": "only if it is venomous, poisonous (including to eat or touch), stings, bites or is protected by law; otherwise empty",
+ "danger": {
+   "level": "none, caution, danger or extreme: the real risk to a person who meets it in the wild. Use none for harmless species",
+   "types": ["any of: venomous, poisonous, stings, bites, aggressive, irritant, disease; empty if none"],
+   "distance_m": "recommended distance to keep in metres as a number, following wildlife-agency guidance; 0 if the advice is just don't touch",
+   "advice": "one or two sentences: how to stay safe and what to do if hurt; empty if none"
+ }
+}
+Be accurate and do not exaggerate: most species are harmless, and only well-documented risks to people count.`;
       const f = await claude(FACTS_MODEL, [{ type: "text", text: prompt }], 700);
       const clean: Record<string, string> = {};
       for (const k of ["habitat", "growth", "diet", "season", "sexes", "size", "lifespan", "fun_fact", "caution"]) {
         if (typeof f[k] === "string" && f[k].trim()) clean[k] = f[k].trim().slice(0, 300);
       }
+      const dg = f.danger && typeof f.danger === "object" ? f.danger : null;
+      const okTypes = ["venomous", "poisonous", "stings", "bites", "aggressive", "irritant", "disease"];
+      const danger = dg && ["none", "caution", "danger", "extreme"].includes(dg.level) ? {
+        level: dg.level,
+        types: (Array.isArray(dg.types) ? dg.types : []).filter((t: unknown) => okTypes.includes(String(t))),
+        distance_m: Math.max(0, Math.min(200, Number(dg.distance_m) || 0)),
+        advice: String(dg.advice ?? "").slice(0, 300),
+      } : null;
       if (!Object.keys(clean).length) return json({ error: "Couldn't write the field guide right now." }, 502);
-      await admin.from("species_facts").upsert({ sci: sciKey, name, grp: group, facts: clean, model: FACTS_MODEL });
-      return json({ facts: clean });
+      const out: Record<string, unknown> = { ...clean }; if (danger) out.danger = danger;
+      await admin.from("species_facts").upsert({ sci: sciKey, name, grp: group, facts: out, model: FACTS_MODEL });
+      return json({ facts: out });
     }
 
     /* ---------------- identify ---------------- */

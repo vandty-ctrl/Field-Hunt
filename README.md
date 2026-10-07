@@ -38,6 +38,13 @@ Open your GitHub Pages link in **Safari**, tap **Share â†’ Add to Home Screen â†
 - **Ranks:** Weekly and all-time leaderboards (needs accounts switched on).
 - **Me:** Create an account or sign in, and switch between km and miles.
 
+## Safety warnings
+- Cards for anything that can hurt people show a coloured warning on the front: yellow for **Caution**, orange for **Danger**, red for **Extreme danger**, with the hazard (venomous, poisonous, stings, bites, can attack, skin irritant, carries disease) and how far back to stay.
+- The back of the card opens with a **Safety** section: what each hazard means, the distance in metres and feet, what to do, and the emergency and poison-help numbers for the country you're in.
+- Before photographing a dangerous species, the card reminds players to stay back and use the camera's zoom, or log a sighting instead.
+- Warnings come from built-in rules for well-known hazards (venomous snakes and spiders, scorpions, wasps, stingrays, bears, bison, crocodiles, cassowaries, poison ivy, deadly mushrooms and more). The AI field notes can add extra warnings but can never lower one.
+- Distances follow common park and wildlife-agency guidance. Always follow local signs and rangers.
+
 ## Wild species only
 - People, pets and farm animals (cats, dogs, cattle, horses, sheep, goats, domestic pigs, poultry and so on) never appear and can't be collected.
 - Records from zoos, botanical-garden collections and farms are left out of the species lists.
