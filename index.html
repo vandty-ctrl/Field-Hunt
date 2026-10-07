@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Field Hunt</title>
-<meta name="description" content="Find wildlife and plants near you, see where they've been spotted, and photograph them to tick them off.">
-<meta name="theme-color" content="#33533a">
+<meta name="description" content="A nature-hunting game: find, photograph and collect the wildlife and plants around you.">
+<meta name="theme-color" content="#173327">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,231 +15,453 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Nunito:wght@500;700;800&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-/* Layout: one column. Search controls, then a satellite map, then the species list as photo cards. */
+/* Layout: app shell with five tabs and a bottom tab bar. Hunt = ranger card + controls + 2-column grid of collectible species cards. */
 :root{
-  --bg:#eef0e8; --surface:#fbfbf6; --ink:#1d241b; --muted:#5d6656; --line:#d3d8c9;
-  --gum:#33533a; --gum-ink:#fbfbf6; --banksia:#b8701c;
-  --reptile:#9a5a22; --amphibian:#2f7a77; --fish:#2c5f9e; --bird:#7b4fa0; --plant:#4f8a2e; --tree:#6b4f2a; --mammal:#a0384f; --other:#5d6656;
-  --danger:#a8321f; --ok:#2e6b33; --ok-soft:#d9ead6;
-  --font-display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
-  --font-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --night:#173327;   /* deep forest: header, tab bar */
+  --moss:#2f6b4c;    /* primary action */
+  --sun:#f4a73b;     /* XP, highlights */
+  --sky:#5fb3d6;
+  --paper:#eef3ec;   /* page ground, cool mint paper */
+  --card:#ffffff;
+  --ink:#16231b;
+  --muted:#5b6b60;
+  --line:#d4ddd3;
+  --on-night:#eaf3ec;
+  --on-night-muted:#9fbcaa;
+  --danger:#b3361f;
+  --r-common:#7b8a80; --r-uncommon:#2f9a56; --r-rare:#2f78c4; --r-epic:#8a4fc7; --r-legend:#d9921c;
+  --reptile:#a5602a; --amphibian:#2e8a84; --fish:#2f68b0; --mammal:#a83c55; --bird:#7552a8; --plant:#4f8f2f; --tree:#6e5230; --other:#6b7a70;
+  --font-display:"Bricolage Grotesque","Avenir Next Condensed","Avenir Next",system-ui,sans-serif;
+  --font-body:"Nunito","Avenir Next",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-latin:"Newsreader",Georgia,serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root{
-  --bg:#141812; --surface:#1c2219; --ink:#e6eadf; --muted:#a0aa96; --line:#323a2d;
-  --gum:#8fc29a; --gum-ink:#11160f; --banksia:#e2a35a;
-  --reptile:#e0a067; --amphibian:#77cbc7; --fish:#86b2ec; --bird:#c4a1e6; --plant:#9fd27a; --tree:#cfae7f; --mammal:#ef8fa3; --other:#a0aa96;
-  --danger:#f0846f; --ok:#8fd096; --ok-soft:#1f3322; color-scheme:dark}}
+  --night:#0d1d16; --moss:#5fbf86; --sun:#f6b552; --sky:#7cc3e2;
+  --paper:#111a15; --card:#18241d; --ink:#e6efe8; --muted:#9db3a5; --line:#2b3a31;
+  --on-night:#eaf3ec; --on-night-muted:#8fae9b; --danger:#f08a72;
+  --r-common:#93a399; --r-uncommon:#5cc983; --r-rare:#6aa9ec; --r-epic:#b386ee; --r-legend:#f2b445;
+  --reptile:#dc955c; --amphibian:#62c7bf; --fish:#7aa9e6; --mammal:#ec8aa0; --bird:#b096e0; --plant:#93cc69; --tree:#c9a676; --other:#9db3a5;
+  color-scheme:dark}}
 
 *{box-sizing:border-box}
-html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.45;
-  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
-.wrap{max-width:760px;margin:0 auto;padding-inline:16px;padding-block:14px 40px;display:flex;flex-direction:column;gap:14px}
-h1,h2{font-family:var(--font-display);margin:0;text-wrap:balance}
-h1{font-size:28px;font-weight:800;line-height:1.05}
+html,body{margin:0;height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.45;-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
 button,input,select{font:inherit;color:inherit}
-button{cursor:pointer}
-:focus-visible{outline:2px solid var(--gum);outline-offset:2px}
-.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
-.tally{font-family:var(--font-display);font-weight:800;color:var(--gum);font-size:26px;font-variant-numeric:tabular-nums;line-height:1;text-align:right}
-.tally small{display:block;font-family:var(--font-body);font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
-.where{color:var(--muted);font-size:14px;margin-top:4px}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+a.btn{text-decoration:none}
+:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance;line-height:1.08}
+.hidden{display:none!important}
 
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
-.label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+#app{height:100%;display:flex;flex-direction:column}
+main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.view{display:none;padding-bottom:24px}
+.view.on{display:block}
+.pad{padding-inline:16px}
+.stack{display:flex;flex-direction:column;gap:14px}
+
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);background:var(--night);color:var(--on-night-muted);padding-bottom:env(safe-area-inset-bottom,0px);border-top:1px solid rgba(255,255,255,.06)}
+.tabbar button{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 0 8px;font-size:11px;font-weight:800;letter-spacing:.02em;color:inherit}
+.tabbar svg{width:24px;height:24px}
+.tabbar button[aria-current="page"]{color:var(--sun)}
+
+.ranger{position:relative;color:var(--on-night);background:var(--night);padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 18px;overflow:hidden}
+.ranger::before{content:"";position:absolute;inset:0;opacity:.18;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='160' viewBox='0 0 240 160'%3E%3Cg fill='none' stroke='%23a9d9b8' stroke-width='1.2'%3E%3Cpath d='M-10 40c40-20 70 10 110-5s60-30 150-10'/%3E%3Cpath d='M-10 62c40-18 75 12 112-2s62-26 148-8'/%3E%3Cpath d='M-10 84c45-14 80 14 115 2s65-22 145-6'/%3E%3Cpath d='M-10 106c48-10 82 16 118 6s66-18 142-4'/%3E%3Cpath d='M-10 128c50-6 85 18 120 10s68-14 140-2'/%3E%3Cellipse cx='190' cy='30' rx='22' ry='10'/%3E%3Cellipse cx='190' cy='30' rx='12' ry='5'/%3E%3C/g%3E%3C/svg%3E");background-size:240px 160px}
+.ranger > *{position:relative}
+.rtop{display:flex;align-items:center;gap:12px}
+.avatar{width:52px;height:52px;border-radius:16px;background:var(--sun);color:#173327;display:grid;place-items:center;font-family:var(--font-display);font-weight:800;font-size:24px;flex:none;transform:rotate(-4deg);box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.rname{min-width:0;flex:1}
+.rname b{display:block;font-family:var(--font-display);font-size:21px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rname span{font-size:13px;color:var(--on-night-muted);font-weight:700}
+.streak{display:flex;align-items:center;gap:4px;font-family:var(--font-display);font-weight:800;font-size:20px;color:var(--sun)}
+.streak svg{width:22px;height:22px}
+.xp{margin-top:14px}
+.xprow{display:flex;justify-content:space-between;font-size:12px;font-weight:800;color:var(--on-night-muted);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
+.xprow b{color:var(--on-night);font-variant-numeric:tabular-nums}
+.xpbar{height:12px;border-radius:6px;background:rgba(255,255,255,.12);overflow:hidden}
+.xpbar span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--sun),#ffd27a);border-radius:6px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.where{display:flex;align-items:center;gap:10px}
+.where .pin{width:36px;height:36px;border-radius:12px;background:var(--paper);display:grid;place-items:center;color:var(--moss);flex:none}
+.where .pin svg{width:20px;height:20px}
+.where .lbl{min-width:0;flex:1}
+.where .lbl small{display:block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.where .lbl b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .locrow{display:flex;gap:8px}
-.locrow input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:11px 12px}
-.btn{border:0;border-radius:10px;padding:11px 14px;font-weight:700;background:var(--gum);color:var(--gum-ink);display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
-.btn.ghost{background:transparent;color:var(--gum);border:1px solid var(--line)}
-.btn.wide{width:100%;font-size:16px;padding:13px}
-.btn:disabled{opacity:.5;cursor:default}
+.locrow input{flex:1;min-width:0;border:1px solid var(--line);background:var(--paper);border-radius:12px;padding:11px 12px}
+.btn{border:0;border-radius:12px;padding:11px 14px;font-weight:800;background:var(--moss);color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
 .btn svg{width:18px;height:18px}
+.btn.soft{background:var(--paper);color:var(--moss);border:1px solid var(--line)}
+.btn.sun{background:var(--sun);color:#1c1405;box-shadow:0 3px 0 rgba(0,0,0,.18)}
+.btn.big{width:100%;font-size:17px;padding:14px;border-radius:14px}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:active:not(:disabled){transform:translateY(1px)}
 .choices{display:flex;flex-direction:column;gap:6px}
-.choices button{text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px}
+.choices button{text-align:left;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:14px}
+.label{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
 
-.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
-.grp{position:relative}
-.grp input{position:absolute;opacity:0;pointer-events:none}
-.grp label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px;font-weight:700;font-size:14px;cursor:pointer;user-select:none}
-.grp .box{width:20px;height:20px;border-radius:5px;border:2px solid var(--c);flex:none;display:grid;place-items:center}
-.grp .box svg{width:14px;height:14px;opacity:0;color:var(--gum-ink)}
-.grp input:checked + label{border-color:var(--c)}
-.grp input:checked + label .box{background:var(--c)}
-.grp input:checked + label .box svg{opacity:1}
-.grp input:focus-visible + label{outline:2px solid var(--gum);outline-offset:2px}
-.optrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.optrow select{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px}
+.groups{display:flex;flex-wrap:wrap;gap:8px}
+.gchip{position:relative}
+.gchip input{position:absolute;opacity:0;pointer-events:none}
+.gchip label{display:flex;align-items:center;gap:6px;border:2px solid var(--line);background:var(--card);border-radius:999px;padding:7px 12px 7px 9px;font-weight:800;font-size:14px;cursor:pointer;user-select:none;color:var(--muted)}
+.gchip label svg{width:20px;height:20px;color:var(--c)}
+.gchip input:checked + label{border-color:var(--c);background:var(--c);color:#fff}
+.gchip input:checked + label svg{color:#fff}
+.gchip input:focus-visible + label{outline:3px solid var(--sun);outline-offset:2px}
 
+.ctrlrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ctrlrow select{border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:9px 10px;font-weight:700}
+.seg{display:inline-flex;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:3px;align-self:flex-start}
+.seg button{border:0;background:none;border-radius:8px;padding:6px 12px;font-weight:800;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .status{margin:0;font-size:14px;color:var(--muted);min-height:1.2em}
-.status.err{color:var(--danger);font-weight:700}
+.status.err{color:var(--danger);font-weight:800}
 
-.mapbox{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
-#map{height:46vh;min-height:280px;max-height:520px;background:#2b2f28}
-.maptools{position:absolute;left:10px;bottom:10px;z-index:500;display:flex;gap:6px;flex-wrap:wrap}
-.maptools .btn{padding:8px 11px;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.35)}
-.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
-.legend span{display:inline-flex;align-items:center;gap:5px}
-.legend i{width:10px;height:10px;border-radius:50%;background:var(--c);display:inline-block}
+.listhead{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.listhead h2{font-size:22px}
+.listhead .count{font-family:var(--font-display);font-weight:800;color:var(--moss);font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.tcard{position:relative;background:var(--card);border-radius:16px;overflow:hidden;border:2px solid var(--rc);display:flex;flex-direction:column;text-align:left;padding:0;box-shadow:0 3px 0 var(--rc)}
+.tcard .ph{aspect-ratio:1;background:var(--line);position:relative;overflow:hidden}
+.tcard .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.tcard .rib{position:absolute;left:8px;top:8px;background:var(--rc);color:#fff;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border-radius:6px;padding:3px 7px;z-index:1}
+.tcard .pts{position:absolute;right:8px;top:8px;background:rgba(10,20,14,.72);color:#ffd27a;font-family:var(--font-display);font-weight:800;font-size:13px;border-radius:6px;padding:2px 7px;z-index:1}
+.tcard .body{padding:9px 10px 11px;display:flex;flex-direction:column;gap:1px;min-width:0}
+.tcard .gname{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--c)}
+.tcard .nm{font-family:var(--font-display);font-weight:800;font-size:16px;line-height:1.12;overflow-wrap:anywhere}
+.tcard .sci{font-family:var(--font-latin);font-style:italic;font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.tcard.got .ph::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.5))}
+.stamp{position:absolute;right:8px;bottom:8px;z-index:1;width:46px;height:46px;border-radius:10px;border:3px solid #fff;object-fit:cover;transform:rotate(6deg);box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.found-tag{position:absolute;left:8px;bottom:9px;z-index:1;color:#fff;font-family:var(--font-display);font-weight:800;font-size:13px;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:4px}
+.found-tag svg{width:16px;height:16px}
+.r-common{--rc:var(--r-common)} .r-uncommon{--rc:var(--r-uncommon)} .r-rare{--rc:var(--r-rare)} .r-epic{--rc:var(--r-epic)} .r-legendary{--rc:var(--r-legend)}
+.g-reptiles{--c:var(--reptile)} .g-amphibians{--c:var(--amphibian)} .g-fish{--c:var(--fish)} .g-mammals{--c:var(--mammal)} .g-birds{--c:var(--bird)} .g-plants{--c:var(--plant)} .g-trees{--c:var(--tree)} .g-other{--c:var(--other)}
+.empty{border:2px dashed var(--line);border-radius:16px;padding:22px;text-align:center;color:var(--muted);background:var(--card)}
+.more{grid-column:1/-1;justify-self:center}
 
-.tabs{display:flex;gap:6px;flex-wrap:wrap}
-.tab{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px;font-weight:700;font-size:13px}
-.tab[aria-pressed="true"]{background:var(--gum);border-color:var(--gum);color:var(--gum-ink)}
-
-.list{display:flex;flex-direction:column;gap:10px}
-.card{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--c);border-radius:12px;padding:10px}
-.card.sel{box-shadow:0 0 0 2px var(--c)}
-.thumb{width:96px;height:96px;border-radius:9px;overflow:hidden;background:var(--line);position:relative}
-.thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.thumb .mine{position:absolute;right:4px;bottom:4px;width:38px;height:38px;border-radius:7px;border:2px solid var(--surface);object-fit:cover}
-.info{min-width:0;display:flex;flex-direction:column;gap:3px}
-.kind{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c)}
-.name{font-family:var(--font-display);font-weight:800;font-size:17px;line-height:1.15;overflow-wrap:anywhere}
-.latin{font-family:var(--font-latin);font-style:italic;color:var(--banksia);font-size:15px;overflow-wrap:anywhere}
-.meta{font-size:13px;color:var(--muted)}
-.found{color:var(--ok);font-weight:700}
-.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
-.actions .btn{padding:7px 10px;font-size:13px}
-.actions a{font-size:13px;font-weight:700;color:var(--gum);align-self:center;text-decoration:none}
-.empty{border:1px dashed var(--line);border-radius:12px;padding:20px;text-align:center;color:var(--muted);background:var(--surface)}
-.more{align-self:center}
-.confirm{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--danger);font-weight:700}
-.addrow{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-.addpanel{display:flex;flex-direction:column;gap:10px}
-.addpanel input{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:11px 12px}
+.addpanel input{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:12px;padding:11px 12px}
 .hits{display:flex;flex-direction:column;gap:6px}
-.hit{display:flex;gap:10px;align-items:center;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px;width:100%}
-.hit img,.hit .ph{width:48px;height:48px;border-radius:7px;object-fit:cover;background:var(--line);flex:none}
+.hit{display:flex;gap:10px;align-items:center;text-align:left;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:6px;width:100%}
+.hit img,.hit .ph0{width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--line);flex:none}
 .hit span{min-width:0;display:flex;flex-direction:column}
 .hit b{overflow-wrap:anywhere}
-.hit i{font-family:var(--font-latin);color:var(--banksia)}
-.mine-tag{color:var(--gum);font-weight:700}
-.foot{font-size:12px;color:var(--muted);text-align:center}
-.foot a{color:inherit}
+.hit i{font-family:var(--font-latin);color:var(--muted)}
 
-.g-reptiles{--c:var(--reptile)} .g-amphibians{--c:var(--amphibian)} .g-fish{--c:var(--fish)}
-.g-birds{--c:var(--bird)} .g-plants{--c:var(--plant)} .g-trees{--c:var(--tree)}
-.g-mammals{--c:var(--mammal)} .g-other{--c:var(--other)}
+#tab-map.on{display:flex;flex-direction:column;height:100%;padding-bottom:0}
+.maphead{background:var(--night);color:var(--on-night);padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 10px;display:flex;align-items:center;gap:10px;justify-content:space-between}
+.maphead h2{font-size:19px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.maphead .btn{padding:7px 11px;font-size:13px}
+.mapwrap{position:relative;flex:1;min-height:300px}
+#map{position:absolute;inset:0;background:#26302a}
+.legend{position:absolute;left:10px;bottom:10px;z-index:500;background:rgba(13,29,22,.82);color:#eaf3ec;border-radius:12px;padding:8px 10px;display:flex;flex-wrap:wrap;gap:6px 10px;font-size:11px;font-weight:800;max-width:calc(100% - 20px)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:10px;height:10px;border-radius:50%;background:var(--c);border:1.5px solid #fff;display:inline-block}
 .leaflet-popup-content{margin:10px 12px;font-family:var(--font-body)}
-.pop{display:flex;gap:8px;align-items:center;min-width:180px}
-.pop img{width:48px;height:48px;border-radius:6px;object-fit:cover}
+.pop{display:flex;gap:8px;align-items:center;min-width:190px}
+.pop img{width:52px;height:52px;border-radius:8px;object-fit:cover}
 .pop b{display:block}
-@media (max-width:400px){.card{grid-template-columns:80px minmax(0,1fr)}.thumb{width:80px;height:80px}}
+.pop small{color:#5b6b60}
+
+.phead{background:var(--night);color:var(--on-night);padding:calc(env(safe-area-inset-top,0px) + 16px) 16px 18px}
+.phead h1{font-size:28px;font-weight:800}
+.phead p{margin:4px 0 0;color:var(--on-night-muted);font-weight:700;font-size:14px}
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 6px;text-align:center}
+.stat b{display:block;font-family:var(--font-display);font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--moss)}
+.stat span{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.badge{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:10px 6px;border-radius:14px;background:var(--card);border:1px solid var(--line)}
+.badge .medal{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:var(--bc);color:#fff;box-shadow:inset 0 -4px 0 rgba(0,0,0,.18)}
+.badge .medal svg{width:28px;height:28px}
+.badge b{font-size:12px;line-height:1.2}
+.badge small{font-size:11px;color:var(--muted);line-height:1.2}
+.badge.locked .medal{background:var(--line);color:var(--muted);box-shadow:none}
+.badge.locked b{color:var(--muted)}
+.mygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.myf{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:1;background:var(--line);border:0;padding:0}
+.myf img{width:100%;height:100%;object-fit:cover;display:block}
+.vchip{position:absolute;left:6px;top:6px;z-index:1;font-size:10px;font-weight:800;letter-spacing:.04em;border-radius:6px;padding:2px 6px;color:#fff;background:rgba(10,20,14,.72)}
+.vchip.yes{background:var(--r-uncommon)} .vchip.unsure{background:#b07d12} .vchip.no{background:var(--danger)}
+.verdict{border-radius:12px;padding:10px 12px;font-size:14px;font-weight:700;background:var(--paper);border:1px solid var(--line)}
+.verdict.yes{border-color:var(--r-uncommon)} .verdict.unsure{border-color:#b07d12} .verdict.no{border-color:var(--danger)}
+.progress{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.progress span{display:block;height:100%;background:var(--moss);width:0}
+.myf span{position:absolute;inset:auto 0 0 0;padding:16px 6px 5px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.7));color:#fff;font-size:12px;font-weight:800;text-align:left;line-height:1.15}
+
+.board{display:flex;flex-direction:column;gap:6px}
+.row{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 12px}
+.row .pos{font-family:var(--font-display);font-weight:800;font-size:18px;text-align:center;color:var(--muted);font-variant-numeric:tabular-nums}
+.row:nth-child(1) .pos{color:var(--r-legend)} .row:nth-child(2) .pos{color:var(--r-common)} .row:nth-child(3) .pos{color:var(--reptile)}
+.row .who{min-width:0}
+.row .who b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .who small{color:var(--muted);font-size:12px}
+.row .p{font-family:var(--font-display);font-weight:800;font-variant-numeric:tabular-nums;color:var(--moss)}
+.row.me{border:2px solid var(--sun)}
+
+.form{display:flex;flex-direction:column;gap:10px}
+.form input{border:1px solid var(--line);background:var(--paper);border-radius:12px;padding:12px}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.about p{margin:0 0 8px;font-size:14px}
+
+.scrim{position:fixed;inset:0;background:rgba(5,12,8,.55);z-index:1000;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:1001;max-height:92%;overflow-y:auto;background:var(--card);border-radius:22px 22px 0 0;transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 16px);max-width:640px;margin:0 auto}
+.sheet.on{transform:none}
+.sheet .hero{position:relative;aspect-ratio:4/3;background:var(--line)}
+.sheet .hero img{width:100%;height:100%;object-fit:cover;display:block}
+.sheet .close{position:absolute;right:12px;top:12px;width:38px;height:38px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:22px;line-height:1}
+.sheet .inner{padding:16px;display:flex;flex-direction:column;gap:10px}
+.sheet h2{font-size:26px}
+.sheet .sci{font-family:var(--font-latin);font-style:italic;font-size:18px;color:var(--muted);margin-top:-6px}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:12px;font-weight:800;border-radius:999px;padding:4px 10px;background:var(--paper);border:1px solid var(--line)}
+.tag.rar{background:var(--rc);color:#fff;border-color:var(--rc)}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mine-photo{display:flex;gap:10px;align-items:center;background:var(--paper);border-radius:12px;padding:8px}
+.mine-photo img{width:64px;height:64px;border-radius:10px;object-fit:cover}
+
+.toasts{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:2000;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding-inline:16px}
+.toast{background:var(--night);color:var(--on-night);border-radius:14px;padding:10px 14px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.35);display:flex;align-items:center;gap:10px;max-width:420px;animation:pop .35s cubic-bezier(.2,1.4,.4,1)}
+.toast .xpg{font-family:var(--font-display);color:var(--sun);font-size:20px;white-space:nowrap}
+@keyframes pop{from{transform:translateY(-12px) scale(.9);opacity:0}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:360px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <div>
-      <h1>Field Hunt</h1>
-      <div class="where" id="where">Set a location to start</div>
+<div id="app">
+<main id="main">
+
+<section class="view on" id="tab-hunt" aria-label="Hunt">
+  <header class="ranger">
+    <div class="rtop">
+      <div class="avatar" id="avatar" aria-hidden="true">R</div>
+      <div class="rname"><b id="rName">Guest ranger</b><span id="rTitle">Level 1 · Sprout</span></div>
+      <div class="streak" title="Days in a row with a find"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-4-1-6 1-9z"/></svg><span id="streakN">0</span></div>
     </div>
-    <div class="tally" id="tally">0<small>found here</small></div>
+    <div class="xp">
+      <div class="xprow"><span id="xpLabel">XP to level 2</span><b id="xpNums">0 / 100</b></div>
+      <div class="xpbar" aria-hidden="true"><span id="xpBar"></span></div>
+    </div>
   </header>
 
-  <section class="panel" aria-label="Search">
-    <div class="label">Where</div>
-    <form class="locrow" id="placeForm">
-      <input id="placeInput" type="search" placeholder="Any park or place, e.g. Yellowstone" autocomplete="off" enterkeyhint="search" aria-label="Park or place">
-      <button class="btn ghost" type="submit">Find</button>
-    </form>
-    <div class="choices" id="choices" hidden></div>
-    <button class="btn ghost" id="gpsBtn" type="button">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7.5"/></svg>
-      Use my location
-    </button>
+  <div class="pad stack" style="margin-top:14px">
+    <div class="panel">
+      <div class="where">
+        <div class="pin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.6"/></svg></div>
+        <div class="lbl"><small>Hunting at</small><b id="whereLbl">Nowhere yet</b></div>
+        <button class="btn" id="gpsBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="7.5"/><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg>Near me</button>
+      </div>
+      <form class="locrow" id="placeForm">
+        <input id="placeInput" type="search" placeholder="Or type any park or place" autocomplete="off" enterkeyhint="search" aria-label="Park or place">
+        <button class="btn soft" type="submit">Find</button>
+      </form>
+      <div class="choices hidden" id="choices"></div>
 
-    <div class="label">Looking for</div>
-    <div class="groups" id="groups"></div>
+      <div class="label">Hunt for</div>
+      <div class="groups" id="groups"></div>
 
-    <div class="optrow">
-      <label class="label" for="radius">Within</label>
-      <select id="radius">
-        <option value="1">1 km</option>
-        <option value="2">2 km</option>
-        <option value="5" selected>5 km</option>
-        <option value="10">10 km</option>
-        <option value="25">25 km</option>
-        <option value="50">50 km</option>
-      </select>
+      <div class="ctrlrow">
+        <label class="label" for="radius">Within</label>
+        <select id="radius"></select>
+        <div class="seg" role="group" aria-label="Distance units" id="unitSeg">
+          <button type="button" data-u="km" aria-pressed="true">km</button>
+          <button type="button" data-u="mi" aria-pressed="false">mi</button>
+        </div>
+      </div>
+      <button class="btn big sun" id="searchBtn" type="button">Start the hunt</button>
+      <p class="status" id="status" role="status"></p>
     </div>
-    <button class="btn wide" id="searchBtn" type="button">Find species</button>
-    <p class="status" id="status" role="status"></p>
-  </section>
 
-  <section class="mapbox" aria-label="Satellite map of sightings">
-    <div id="map"></div>
-    <div class="maptools">
-      <button class="btn" id="centerBtn" type="button">Search this map area</button>
-      <button class="btn ghost" id="showAllBtn" type="button" hidden style="background:var(--surface)">Show all pins</button>
+    <div class="listhead">
+      <div><h2>Field cards</h2><span class="count" id="collected">0 of 0 collected</span></div>
+      <div class="seg" role="group" aria-label="Show" id="listSeg">
+        <button type="button" data-v="all" aria-pressed="true">All</button>
+        <button type="button" data-v="left" aria-pressed="false">To find</button>
+        <button type="button" data-v="found" aria-pressed="false">Got</button>
+      </div>
     </div>
-  </section>
-  <div class="legend" id="legend"></div>
-
-  <div class="tabs" role="group" aria-label="List view">
-    <button class="tab" data-v="all" aria-pressed="true">Nearby</button>
-    <button class="tab" data-v="left" aria-pressed="false">Still to find</button>
-    <button class="tab" data-v="found" aria-pressed="false">Found here</button>
-    <button class="tab" data-v="mine" aria-pressed="false">All my finds</button>
+    <button class="btn soft" id="addBtn" type="button" aria-expanded="false">+ Add a species you know is here</button>
+    <div class="panel addpanel hidden" id="addPanel">
+      <input id="addInput" type="search" placeholder="Type a name, e.g. eastern copperhead" autocomplete="off" enterkeyhint="search" aria-label="Species name">
+      <div class="hits" id="hits"></div>
+    </div>
+    <div class="grid" id="grid"></div>
   </div>
+</section>
 
-  <div class="addrow">
-    <span class="meta" id="listNote"></span>
-    <button class="btn ghost" id="addBtn" type="button" aria-expanded="false">+ Add a species</button>
+<section class="view" id="tab-map" aria-label="Map">
+  <div class="maphead"><h2 id="mapTitle">Sightings map</h2><button class="btn sun hidden" id="showAllBtn" type="button">Show all</button></div>
+  <div class="mapwrap"><div id="map"></div><div class="legend" id="legend"></div></div>
+</section>
+
+<section class="view" id="tab-journal" aria-label="Journal">
+  <header class="phead"><h1>Field journal</h1><p>Everything you've collected, everywhere.</p></header>
+  <div class="pad stack" style="margin-top:14px">
+    <div class="stats">
+      <div class="stat"><b id="sSpecies">0</b><span>Species</span></div>
+      <div class="stat"><b id="sXP">0</b><span>XP</span></div>
+      <div class="stat"><b id="sStreak">0</b><span>Streak</span></div>
+      <div class="stat"><b id="sPlaces">0</b><span>Places</span></div>
+    </div>
+    <h2>Badges</h2>
+    <div class="badges" id="badges"></div>
+    <h2>Your photos</h2>
+    <div class="mygrid" id="mygrid"></div>
   </div>
-  <section class="panel addpanel" id="addPanel" hidden aria-label="Add a species">
-    <div class="label">Add something you know is here</div>
-    <input id="addInput" type="search" placeholder="Type a name, e.g. bobtail or Tiliqua" autocomplete="off" enterkeyhint="search" aria-label="Species name">
-    <div class="hits" id="hits"></div>
-  </section>
+</section>
 
-  <section class="list" id="list" aria-live="polite">
-    <div class="empty">Tap <b>Use my location</b> or type a park, tick what you want to look for, then tap <b>Find species</b>. You'll get a photo list of what's been seen there and pins on the map showing where.</div>
-  </section>
+<section class="view" id="tab-ranks" aria-label="Leaderboard">
+  <header class="phead"><h1>Leaderboard</h1><p>XP from new species. Get outside and climb.</p></header>
+  <div class="pad stack" style="margin-top:14px">
+    <div class="seg" role="group" aria-label="Period" id="rankSeg">
+      <button type="button" data-r="week" aria-pressed="true">This week</button>
+      <button type="button" data-r="all" aria-pressed="false">All time</button>
+    </div>
+    <div id="board" class="board"></div>
+  </div>
+</section>
 
-  <p class="foot">Sightings and species photos from <a href="https://www.inaturalist.org" target="_blank" rel="noopener">iNaturalist</a> (research-grade observations). Your own photos stay on this phone. Look, don't handle, and keep well back from snakes.</p>
+<section class="view" id="tab-me" aria-label="Profile">
+  <header class="phead"><h1>Ranger profile</h1><p id="meSub">Play as a guest, or make a free account to join the leaderboard.</p></header>
+  <div class="pad stack" style="margin-top:14px">
+    <div class="panel" id="account"></div>
+    <div class="panel">
+      <div class="label">Distance units</div>
+      <div class="seg" role="group" aria-label="Distance units" id="unitSeg2">
+        <button type="button" data-u="km" aria-pressed="true">Kilometres</button>
+        <button type="button" data-u="mi" aria-pressed="false">Miles</button>
+      </div>
+    </div>
+    <div class="panel about">
+      <div class="label">Where the species come from</div>
+      <p><b>iNaturalist</b>: community sightings confirmed by other naturalists.</p>
+      <p><b>GBIF</b> (Global Biodiversity Information Facility): museum collections, wildlife surveys, eBird bird counts and national species atlases from around the world.</p>
+      <p>Rarity is based on how often a species has been recorded near where you're hunting. Rare and threatened animals sometimes have their exact spots hidden to protect them.</p>
+      <p class="hint">Look, don't touch. Keep well back from snakes and wild animals, and stay on trails.</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<nav class="tabbar" aria-label="Sections">
+  <button data-tab="hunt" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Hunt</button>
+  <button data-tab="map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Map</button>
+  <button data-tab="journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/></svg>Journal</button>
+  <button data-tab="ranks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/></svg>Ranks</button>
+  <button data-tab="me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>Me</button>
+</nav>
 </div>
 
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
 
+<script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 (() => {
 "use strict";
-const API = "https://api.inaturalist.org/v1";
+const INAT = "https://api.inaturalist.org/v1";
+const GBIF = "https://api.gbif.org/v1";
+const INAT_GBIF_DATASET = "50c9509d-22c7-4a22-a47d-8c48425ef4a7"; // iNaturalist's copy inside GBIF, skipped to avoid double counting
 const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 const ls = { get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch{ return d; } },
              set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} } };
+async function getJSON(url){ const r = await fetch(url, { headers:{ Accept:"application/json" } }); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }
+async function pool(items, n, fn){ const out = new Array(items.length); let i = 0;
+  await Promise.all(Array.from({ length:Math.min(n, items.length) }, async () => { while (i < items.length){ const k = i++; out[k] = await fn(items[k], k); } }));
+  return out; }
 
-const GROUPS = {
-  reptiles:   { label:"Reptiles",   iconic:"Reptilia" },
-  amphibians: { label:"Amphibians", iconic:"Amphibia" },
-  fish:       { label:"Fish",       iconic:"Actinopterygii" },
-  birds:      { label:"Birds",      iconic:"Aves" },
-  mammals:    { label:"Mammals",    iconic:"Mammalia" },
-  plants:     { label:"Plants",     iconic:"Plantae" },
-  trees:      { label:"Trees",      families:["Pinaceae","Cupressaceae","Araucariaceae","Podocarpaceae","Fagaceae","Nothofagaceae","Betulaceae","Juglandaceae","Ulmaceae","Platanaceae","Magnoliaceae","Arecaceae","Casuarinaceae","Salicaceae","Sapindaceae","Myrtaceae","Moraceae","Lauraceae","Meliaceae","Dipterocarpaceae","Bignoniaceae"] }
+/* ---------- icons ---------- */
+const I = {
+  reptiles:'<path d="M3 16c2.5 0 3.5-2.5 6-2.5S12 17 15 17s4-2.2 6-5"/><path d="M8 13.6 7 10.5M12.5 15.6 13.5 19M15.5 16.8 15 13.5M19.5 13.5l1.5 2"/><circle cx="19.6" cy="10.4" r=".6" fill="currentColor"/>',
+  amphibians:'<circle cx="8" cy="8" r="2.4"/><circle cx="16" cy="8" r="2.4"/><path d="M5.5 10.5C3.5 12 3.5 15 5 16.5c2 2 12 2 14 0 1.5-1.5 1.5-4.5-.5-6"/><path d="M9.5 14.5c1.5 1 3.5 1 5 0"/>',
+  fish:'<path d="M3 12c3.5-5.5 11-5.5 14 0-3 5.5-10.5 5.5-14 0z"/><path d="M17 12l4-3.5v7z"/><circle cx="8" cy="11" r=".7" fill="currentColor"/>',
+  mammals:'<ellipse cx="12" cy="16" rx="4.2" ry="3.4"/><circle cx="6" cy="10.5" r="1.7"/><circle cx="9.8" cy="6.6" r="1.7"/><circle cx="14.2" cy="6.6" r="1.7"/><circle cx="18" cy="10.5" r="1.7"/>',
+  birds:'<path d="M4 13c3 0 5-2 6.5-5.5 1 3.2 3.2 5 6 5l4.5-1.5-3 3.5c-2 2.6-4.6 3.8-8.2 3.8C6.8 18.3 5 16.6 4 13z"/><circle cx="16.5" cy="10.6" r=".6" fill="currentColor"/>',
+  plants:'<path d="M5 19C5 10.5 10.5 5 20 4c0 9-5.5 15-15 15z"/><path d="M5 19l8.5-8.5"/>',
+  trees:'<path d="M12 3l6 8.5h-3.6l4.6 6.5H5l4.6-6.5H6z"/><path d="M12 18v3"/>',
+  star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+  flame:'<path d="M12 3c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-4-1-6 1-8z"/>',
+  compass:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
+  book:'<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/>',
+  gem:'<path d="M6 4h12l3 5-9 11L3 9z"/><path d="M3 9h18M9 4l3 16M15 4l-3 16"/>',
+  other:'<circle cx="12" cy="12" r="8"/><path d="M12 8v5M12 16h.01"/>'
 };
-GROUPS.other = { label:"Others" };
-const ORDER = ["reptiles","amphibians","fish","mammals","birds","plants","trees"];
-const ICONIC_TO_GROUP = { Reptilia:"reptiles", Amphibia:"amphibians", Actinopterygii:"fish", Aves:"birds", Mammalia:"mammals", Plantae:"plants" };
-const tick = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const ic = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k] || I.other}</svg>`;
 
+/* ---------- groups ---------- */
+const GROUPS = {
+  reptiles:   { label:"Reptiles",   one:"Reptile",   inat:"Reptilia",       gbif:[["Reptilia","CLASS"],["Squamata","ORDER"],["Testudines","ORDER"],["Crocodylia","ORDER"]] },
+  amphibians: { label:"Amphibians", one:"Amphibian", inat:"Amphibia",       gbif:[["Amphibia","CLASS"]] },
+  fish:       { label:"Fish",       one:"Fish",      inat:"Actinopterygii", gbif:[["Actinopterygii","CLASS"],["Elasmobranchii","CLASS"]] },
+  mammals:    { label:"Mammals",    one:"Mammal",    inat:"Mammalia",       gbif:[["Mammalia","CLASS"]] },
+  birds:      { label:"Birds",      one:"Bird",      inat:"Aves",           gbif:[["Aves","CLASS"]] },
+  plants:     { label:"Plants",     one:"Plant",     inat:"Plantae",        gbif:[["Plantae","KINGDOM"]] },
+  trees:      { label:"Trees",      one:"Tree",      families:["Pinaceae","Cupressaceae","Araucariaceae","Podocarpaceae","Fagaceae","Nothofagaceae","Betulaceae","Juglandaceae","Ulmaceae","Platanaceae","Magnoliaceae","Arecaceae","Casuarinaceae","Salicaceae","Sapindaceae","Myrtaceae","Moraceae","Lauraceae","Meliaceae","Dipterocarpaceae","Bignoniaceae"] },
+  other:      { label:"Others",     one:"Wildlife" }
+};
+const ORDER = ["reptiles","amphibians","fish","mammals","birds","plants","trees"];
+const ICONIC = { Reptilia:"reptiles", Amphibia:"amphibians", Actinopterygii:"fish", Aves:"birds", Mammalia:"mammals", Plantae:"plants" };
+const GBIF_CLASS = { Reptilia:"reptiles", Squamata:"reptiles", Testudines:"reptiles", Crocodylia:"reptiles", Amphibia:"amphibians", Actinopterygii:"fish", Elasmobranchii:"fish", Aves:"birds", Mammalia:"mammals" };
+
+/* ---------- rarity, points, levels ---------- */
+const RARITY = [
+  { id:"legendary", label:"Legendary", pts:100, test:c => c <= 1 },
+  { id:"epic",      label:"Epic",      pts:60,  test:c => c <= 3 },
+  { id:"rare",      label:"Rare",      pts:40,  test:c => c <= 8 },
+  { id:"uncommon",  label:"Uncommon",  pts:20,  test:c => c <= 25 },
+  { id:"common",    label:"Common",    pts:10,  test:() => true }
+];
+const rarityOf = s => s.custom ? { id:"rare", label:"Rare", pts:40 } : RARITY.find(r => r.test(s.count));
+const TITLES = ["Sprout","Seedling","Scout","Trailblazer","Tracker","Ranger","Field Naturalist","Wild Expert","Expedition Leader","Legend of the Wild"];
+const levelFor = xp => { let n = 1; while (50 * n * (n + 1) <= xp) n++; return { n, lo: 50 * n * (n - 1), hi: 50 * n * (n + 1) }; };
+const titleFor = n => TITLES[Math.min(n - 1, TITLES.length - 1)];
+
+/* ---------- state ---------- */
 const state = {
   loc: ls.get("fh-loc", null),
   groups: new Set(ls.get("fh-groups", ["reptiles","amphibians","plants"])),
-  radius: ls.get("fh-radius", 5),
-  species: [], showN: 30, view: "all", sel: null,
-  finds: new Map(), pending: null
+  radiusKm: ls.get("fh-radius", 5),
+  units: ls.get("fh-units", "km"),
+  species: [], showN: 40, view: "all",
+  finds: new Map(), pending: null,
+  sb: null, user: null, username: null, rankPeriod: "week",
+  owner: "guest", guestCount: 0, skipGuest: false, migrating: null
 };
+const keyOf = x => String(x);
 
-/* ---------- tiny IndexedDB store for your photos ---------- */
+/* ---------- units ---------- */
+const KM_OPTS = [1,2,5,10,25,50];
+const MI_OPTS = [0.5,1,3,5,15,30];
+const MI = 1.609344;
+const fmtDist = km => { if (state.units === "mi"){ const m = km / MI; return `${+m.toFixed(m < 2 ? 1 : 0)} mi`; } return `${+km.toFixed(km < 2 ? 1 : 0)} km`; };
+function buildRadius(){
+  const opts = state.units === "mi" ? MI_OPTS.map(m => ({ v: +(m * MI).toFixed(3), t: m + " mi" })) : KM_OPTS.map(k => ({ v: k, t: k + " km" }));
+  let best = opts[0]; for (const o of opts) if (Math.abs(o.v - state.radiusKm) < Math.abs(best.v - state.radiusKm)) best = o;
+  state.radiusKm = best.v; ls.set("fh-radius", state.radiusKm);
+  $("#radius").innerHTML = opts.map(o => `<option value="${o.v}" ${o === best ? "selected" : ""}>${o.t}</option>`).join("");
+  $$("#unitSeg button, #unitSeg2 button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.u === state.units)));
+}
+function setUnits(u){ state.units = u; ls.set("fh-units", u); buildRadius(); drawHere(); }
+$("#unitSeg").addEventListener("click", e => { const b = e.target.closest("button[data-u]"); if (b) setUnits(b.dataset.u); });
+$("#unitSeg2").addEventListener("click", e => { const b = e.target.closest("button[data-u]"); if (b) setUnits(b.dataset.u); });
+$("#radius").addEventListener("change", e => { state.radiusKm = +e.target.value; ls.set("fh-radius", state.radiusKm); drawHere(); fitSearch(); });
+
+/* ---------- your photos (IndexedDB, on this phone) ---------- */
 const idb = (() => {
   let dbp;
   const open = () => dbp ||= new Promise((res, rej) => {
@@ -248,404 +470,621 @@ const idb = (() => {
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
   const tx = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => {
-    const t = db.transaction("finds", mode); const st = t.objectStore("finds"); const out = fn(st);
+    const t = db.transaction("finds", mode); const out = fn(t.objectStore("finds"));
     t.oncomplete = () => res(out && out.result); t.onerror = () => rej(t.error); }); };
   return { all: () => tx("readonly", s => s.getAll()), put: v => tx("readwrite", s => s.put(v)), del: id => tx("readwrite", s => s.delete(id)) };
 })();
 const urls = new Map();
-const findURL = f => { if (!f?.photo) return ""; if (!urls.has(f.id)) urls.set(f.id, URL.createObjectURL(f.photo)); return urls.get(f.id); };
+const findURL = f => { if (!f?.photo) return ""; const k = String(f.id); if (!urls.has(k)) urls.set(k, URL.createObjectURL(f.photo)); return urls.get(k); };
+const dropURL = id => { const k = String(id); if (urls.has(k)){ URL.revokeObjectURL(urls.get(k)); urls.delete(k); } };
+const isGot = f => !!f && f.verdict !== "no";
+const VERDICT = { yes:"Verified", unsure:"Half points", no:"No match", pending:"Checking…" };
+
+/* ---------- toasts & status ---------- */
+function toast(html, ms = 2600){ const t = document.createElement("div"); t.className = "toast"; t.innerHTML = html; $("#toasts").appendChild(t); setTimeout(() => t.remove(), ms); }
+const setStatus = (msg, err) => { const el = $("#status"); el.textContent = msg || ""; el.classList.toggle("err", !!err); };
+
+/* ---------- tabs ---------- */
+function showTab(name){
+  $$(".view").forEach(v => v.classList.toggle("on", v.id === "tab-" + name));
+  $$(".tabbar button").forEach(b => { if (b.dataset.tab === name) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
+  $("#main").scrollTop = 0;
+  if (name === "map") setTimeout(() => map.invalidateSize(), 60);
+  if (name === "journal") renderJournal();
+  if (name === "ranks") renderRanks();
+  if (name === "me") renderAccount();
+}
+$(".tabbar").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) showTab(b.dataset.tab); });
 
 /* ---------- map ---------- */
-const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  { maxZoom:19, maxNativeZoom:18, attribution:"Imagery &copy; Esri, Maxar, Earthstar Geographics" });
-const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-  { maxZoom:19, maxNativeZoom:18, pane:"overlayPane" });
-const streets = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  { maxZoom:19, attribution:"&copy; OpenStreetMap contributors" });
-const map = L.map("map", { layers:[sat, labels], zoomControl:true, worldCopyJump:true }).setView([20, 0], 2);
+const sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom:19, maxNativeZoom:18, attribution:"Imagery &copy; Esri, Maxar, Earthstar Geographics" });
+const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom:19, maxNativeZoom:18, pane:"overlayPane" });
+const streets = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom:19, attribution:"&copy; OpenStreetMap contributors" });
+const map = L.map("map", { layers:[sat, labels], worldCopyJump:true }).setView([20, 0], 2);
 L.control.layers({ "Satellite":sat, "Street map":streets }, { "Place names":labels }, { position:"topright" }).addTo(map);
-const obsLayer = L.layerGroup().addTo(map);
-const findsLayer = L.layerGroup().addTo(map);
-const hereLayer = L.layerGroup().addTo(map);
-const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#33533a";
-const groupColor = g => cssVar("--" + (({reptiles:"reptile",amphibians:"amphibian",fish:"fish",birds:"bird",plants:"plant",trees:"tree",mammals:"mammal"})[g] || "other"));
+const obsLayer = L.layerGroup().addTo(map), findsLayer = L.layerGroup().addTo(map), hereLayer = L.layerGroup().addTo(map);
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#2f6b4c";
+const GVAR = { reptiles:"--reptile", amphibians:"--amphibian", fish:"--fish", mammals:"--mammal", birds:"--bird", plants:"--plant", trees:"--tree", other:"--other" };
+const groupColor = g => cssVar(GVAR[g] || "--other");
+$("#legend").innerHTML = ORDER.map(k => `<span class="g-${k}"><i></i>${GROUPS[k].label}</span>`).join("") + '<span><i style="background:#ffd23f"></i>Your finds</span>';
 
-/* ---------- helpers ---------- */
-const setStatus = (msg, err) => { const el = $("#status"); el.textContent = msg || ""; el.classList.toggle("err", !!err); };
-async function getJSON(url){
-  const r = await fetch(url, { headers:{ Accept:"application/json" } });
-  if (!r.ok) throw new Error("HTTP " + r.status);
-  return r.json();
-}
-const shortName = s => String(s || "").split(",").slice(0, 2).join(",").trim();
-
-function saveLoc(loc){
-  state.loc = loc; ls.set("fh-loc", loc);
-  $("#where").textContent = loc ? loc.label : "Set a location to start";
-  drawHere();
-}
 function drawHere(){
-  hereLayer.clearLayers();
-  if (!state.loc) return;
+  hereLayer.clearLayers(); if (!state.loc) return;
   const c = [state.loc.lat, state.loc.lng];
-  L.circle(c, { radius: state.radius*1000, color:"#ffffff", weight:1.5, dashArray:"5 6", fill:false, interactive:false }).addTo(hereLayer);
-  L.circleMarker(c, { radius:8, color:"#ffffff", weight:3, fillColor:"#2a7fff", fillOpacity:1 }).bindTooltip(state.loc.label).addTo(hereLayer);
+  L.circle(c, { radius: state.radiusKm * 1000, color:"#fff", weight:1.5, dashArray:"5 6", fill:false, interactive:false }).addTo(hereLayer);
+  L.circleMarker(c, { radius:8, color:"#fff", weight:3, fillColor:"#2a7fff", fillOpacity:1 }).bindTooltip(esc(state.loc.label)).addTo(hereLayer);
 }
-function fitSearch(){
-  if (!state.loc) return;
-  map.fitBounds(L.latLng(state.loc.lat, state.loc.lng).toBounds(state.radius*2000), { padding:[10,10] });
-}
-
-/* ---------- location ---------- */
-$("#gpsBtn").addEventListener("click", () => {
-  if (!("geolocation" in navigator)){ setStatus("This browser can't share your location. Type a place instead.", true); return; }
-  setStatus("Finding you…");
-  navigator.geolocation.getCurrentPosition(async pos => {
-    const lat = +pos.coords.latitude.toFixed(5), lng = +pos.coords.longitude.toFixed(5);
-    let label = "Near you";
-    try{
-      const r = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=15&lat=${lat}&lon=${lng}`);
-      if (r?.display_name) label = "Near " + shortName(r.display_name);
-    }catch{}
-    saveLoc({ lat, lng, label }); fitSearch(); setStatus("");
-    search();
-  }, err => {
-    setStatus(err.code === 1
-      ? "Location is turned off for this app. Allow it in Settings > Privacy & Security > Location Services > Safari Websites, or type a place."
-      : "Couldn't get your location. Try again outside, or type a place.", true);
-  }, { enableHighAccuracy:true, timeout:15000, maximumAge:60000 });
-});
-
-$("#placeForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const q = $("#placeInput").value.trim(); if (!q) return;
-  setStatus("Looking up " + q + "…");
-  let hits = [];
-  try{
-    const r = await getJSON(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=${encodeURIComponent(q)}`);
-    hits = r.map(p => ({ lat:+p.lat, lng:+p.lon, label:shortName(p.display_name), full:p.display_name }));
-  }catch{}
-  if (!hits.length){
-    try{
-      const r = await getJSON(`${API}/places/autocomplete?q=${encodeURIComponent(q)}&per_page=5`);
-      hits = (r.results || []).filter(p => p.location).map(p => { const [a,b] = p.location.split(","); return { lat:+a, lng:+b, label:p.display_name, full:p.display_name }; });
-    }catch{}
-  }
-  if (!hits.length){ setStatus("Couldn't find that place. Try adding the town or state.", true); return; }
-  if (hits.length === 1){ choose(hits[0]); return; }
-  setStatus("Which one?");
-  const box = $("#choices"); box.hidden = false;
-  box.innerHTML = hits.map((h, i) => `<button type="button" data-i="${i}">${esc(h.full)}</button>`).join("");
-  box.onclick = ev => { const b = ev.target.closest("button[data-i]"); if (b) choose(hits[+b.dataset.i]); };
-});
-function choose(h){
-  $("#choices").hidden = true; $("#choices").innerHTML = "";
-  saveLoc({ lat:+h.lat.toFixed(5), lng:+h.lng.toFixed(5), label:h.label }); fitSearch(); setStatus("");
-  search();
-}
-$("#centerBtn").addEventListener("click", () => {
-  const c = map.getCenter(); const b = map.getBounds();
-  const km = Math.max(0.5, Math.min(50, c.distanceTo(b.getNorthEast()) / 1000 * 0.7));
-  const opts = [1,2,5,10,25,50]; const pick = opts.find(o => o >= km) || 50;
-  state.radius = pick; $("#radius").value = String(pick); ls.set("fh-radius", pick);
-  saveLoc({ lat:+c.lat.toFixed(5), lng:+c.lng.toFixed(5), label:"Map area (" + c.lat.toFixed(3) + ", " + c.lng.toFixed(3) + ")" });
-  search();
-});
-
-/* ---------- group tick boxes ---------- */
-$("#groups").innerHTML = ORDER.map(k => `
-  <div class="grp g-${k}">
-    <input type="checkbox" id="g-${k}" value="${k}" ${state.groups.has(k) ? "checked" : ""}>
-    <label for="g-${k}"><span class="box">${tick}</span>${GROUPS[k].label}</label>
-  </div>`).join("");
-$("#groups").addEventListener("change", e => {
-  if (e.target.checked) state.groups.add(e.target.value); else state.groups.delete(e.target.value);
-  ls.set("fh-groups", [...state.groups]);
-});
-$("#legend").innerHTML = ORDER.map(k => `<span class="g-${k}"><i></i>${GROUPS[k].label}</span>`).join("") +
-  '<span><i style="background:#ffd23f;border:2px solid #fff"></i>Your finds</span>';
-$("#radius").value = String(state.radius);
-$("#radius").addEventListener("change", e => { state.radius = +e.target.value; ls.set("fh-radius", state.radius); drawHere(); fitSearch(); });
-$("#searchBtn").addEventListener("click", () => search());
-
-/* ---------- species data (iNaturalist) ---------- */
-async function treeIds(){
-  const cached = ls.get("fh-tree-ids", null);
-  if (cached?.length) return cached;
-  const ids = (await Promise.all(GROUPS.trees.families.map(async f => {
-    try{
-      const r = await getJSON(`${API}/taxa?q=${f}&rank=family&per_page=5`);
-      return (r.results || []).find(t => t.name === f)?.id || null;
-    }catch{ return null; }
-  }))).filter(Boolean);
-  if (ids.length) ls.set("fh-tree-ids", ids);
-  return ids;
-}
-function filterFor(g, tids){
-  return GROUPS[g].iconic ? `iconic_taxa=${GROUPS[g].iconic}` : `taxon_id=${tids.join(",")}`;
-}
-let searchSeq = 0;
-async function search(){
-  if (!state.loc){ setStatus("Set a location first: use your location or type a park.", true); return; }
-  if (!state.groups.size){ setStatus("Tick at least one box (reptiles, plants…).", true); return; }
-  const seq = ++searchSeq;
-  const btn = $("#searchBtn"); btn.disabled = true; btn.textContent = "Searching…";
-  setStatus("Pulling sightings from iNaturalist…");
-  state.sel = null; $("#showAllBtn").hidden = true;
-  drawHere(); fitSearch();
-  const { lat, lng } = state.loc; const radius = state.radius;
-  const base = `lat=${lat}&lng=${lng}&radius=${radius}&quality_grade=research&captive=false&locale=en`;
-  try{
-    const groups = ORDER.filter(g => state.groups.has(g));
-    const tids = groups.includes("trees") ? await treeIds() : [];
-    const results = await Promise.all(groups.map(async g => {
-      if (g === "trees" && !tids.length) return { g, counts:[], obs:[] };
-      const f = filterFor(g, tids);
-      const [counts, obs] = await Promise.all([
-        getJSON(`${API}/observations/species_counts?${base}&${f}&per_page=60`).catch(() => ({ results:[] })),
-        getJSON(`${API}/observations?${base}&${f}&geo=true&photos=true&per_page=200&order_by=observed_on&order=desc`).catch(() => ({ results:[] }))
-      ]);
-      return { g, counts: counts.results || [], obs: obs.results || [] };
-    }));
-    if (seq !== searchSeq) return;
-    // build species list; trees win over plants for the same species
-    const byId = new Map();
-    for (const { g, counts } of results.sort((a,b) => (a.g === "trees") - (b.g === "trees"))){
-      for (const c of counts){
-        const t = c.taxon; if (!t) continue;
-        byId.set(t.id, { id:t.id, name: t.preferred_common_name ? cap(t.preferred_common_name) : t.name, sci:t.name, group:g,
-          photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", count:c.count });
-      }
-    }
-    state.species = [...byId.values()].sort((a,b) => b.count - a.count);
-    mergeCustom();
-    state.showN = 30;
-    // pins
-    obsLayer.clearLayers();
-    let pins = 0;
-    for (const { g, obs } of results){
-      for (const o of obs){
-        if (o.obscured || !o.geojson?.coordinates) continue;
-        const sp = byId.get(o.taxon?.id); const grp = sp ? sp.group : g;
-        addPin(o, grp); pins++;
-      }
-    }
-    drawFinds();
-    const n = state.species.length;
-    setStatus(n ? `${n} species seen within ${radius} km. ${pins} recent sightings pinned on the map.` :
-      `No research-grade sightings within ${radius} km. Try a bigger radius or more boxes.`, !n);
-    render();
-  }catch(err){
-    if (seq === searchSeq) setStatus("Couldn't reach iNaturalist. Check your signal and try again.", true);
-  }finally{
-    if (seq === searchSeq){ btn.disabled = false; btn.textContent = "Find species"; }
-  }
-}
-const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
-
-function addPin(o, g, big){
-  const [x, y] = o.geojson.coordinates;
-  const name = o.taxon?.preferred_common_name ? cap(o.taxon.preferred_common_name) : (o.taxon?.name || "Unknown");
-  const img = o.photos?.[0]?.url ? o.photos[0].url.replace("square", "small") : "";
-  const m = L.circleMarker([y, x], { radius: big ? 8 : 6, color:"#ffffff", weight: big ? 2.5 : 1.5, fillColor: groupColor(g), fillOpacity:.95 });
-  m.bindPopup(`<div class="pop">${img ? `<img src="${esc(img)}" alt="">` : ""}<div><b>${esc(name)}</b><i>${esc(o.taxon?.name || "")}</i><br>${esc(o.observed_on || "")}<br><a href="https://www.inaturalist.org/observations/${o.id}" target="_blank" rel="noopener">View sighting</a></div></div>`);
+function fitSearch(){ if (state.loc) map.fitBounds(L.latLng(state.loc.lat, state.loc.lng).toBounds(state.radiusKm * 2000), { padding:[10,10] }); }
+function addPin(p, g, big){
+  const m = L.circleMarker([p.lat, p.lng], { radius: big ? 8 : 6, color:"#fff", weight: big ? 2.5 : 1.5, fillColor: groupColor(g), fillOpacity:.95 });
+  m.bindPopup(`<div class="pop">${p.img ? `<img src="${esc(p.img)}" alt="">` : ""}<div><b>${esc(p.name)}</b><i>${esc(p.sci || "")}</i><br><small>${esc(p.date || "")} · ${esc(p.src)}</small><br><a href="${esc(p.url)}" target="_blank" rel="noopener">View record</a></div></div>`);
   m.addTo(obsLayer);
 }
 function drawFinds(){
   findsLayer.clearLayers();
   for (const f of state.finds.values()){
-    if (f.lat == null) continue;
-    L.circleMarker([f.lat, f.lng], { radius:9, color:"#ffffff", weight:3, fillColor:"#ffd23f", fillOpacity:1 })
-      .bindPopup(`<div class="pop"><img src="${esc(findURL(f))}" alt=""><div><b>${esc(f.name)}</b>You found this ${esc(new Date(f.at).toLocaleDateString())}</div></div>`)
+    if (f.lat == null || !isGot(f)) continue;
+    L.circleMarker([f.lat, f.lng], { radius:9, color:"#fff", weight:3, fillColor:"#ffd23f", fillOpacity:1 })
+      .bindPopup(`<div class="pop"><img src="${esc(findURL(f))}" alt=""><div><b>${esc(f.name)}</b><small>You found this ${esc(new Date(f.at).toLocaleDateString())}</small></div></div>`)
       .addTo(findsLayer);
   }
 }
 
-async function showOnMap(id){
-  const sp = state.species.find(s => s.id === id); if (!sp || !state.loc) return;
-  state.sel = id; render();
-  map.getContainer().scrollIntoView({ behavior:"smooth", block:"center" });
-  setStatus("Loading sightings of " + sp.name + "…");
+/* ---------- location ---------- */
+const shortName = s => String(s || "").split(",").slice(0, 2).join(",").trim();
+function saveLoc(loc){ state.loc = loc; ls.set("fh-loc", loc); $("#whereLbl").textContent = loc ? loc.label : "Nowhere yet"; drawHere(); }
+$("#gpsBtn").addEventListener("click", () => {
+  if (!("geolocation" in navigator)) return setStatus("This phone can't share location here. Type a place instead.", true);
+  setStatus("Finding you…");
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const lat = +pos.coords.latitude.toFixed(5), lng = +pos.coords.longitude.toFixed(5);
+    let label = "Near you", country = "";
+    try{ const r = await getJSON(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=15&addressdetails=1&lat=${lat}&lon=${lng}`);
+      if (r?.display_name) label = "Near " + shortName(r.display_name); country = (r?.address?.country_code || "").toUpperCase(); }catch{}
+    saveLoc({ lat, lng, label, country }); fitSearch(); setStatus(""); search();
+  }, err => setStatus(err.code === 1 ? "Location is off for Field Hunt. Turn it on in Settings > Privacy & Security > Location Services > Safari Websites, or type a place." : "Couldn't get your location. Try again, or type a place.", true),
+  { enableHighAccuracy:true, timeout:15000, maximumAge:60000 });
+});
+$("#placeForm").addEventListener("submit", async e => {
+  e.preventDefault(); const q = $("#placeInput").value.trim(); if (!q) return;
+  setStatus("Looking up " + q + "…"); let hits = [];
+  try{ const r = await getJSON(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&q=${encodeURIComponent(q)}`);
+    hits = r.map(p => ({ lat:+p.lat, lng:+p.lon, label:shortName(p.display_name), full:p.display_name, country:(p.address?.country_code || "").toUpperCase() })); }catch{}
+  if (!hits.length){ try{ const r = await getJSON(`${INAT}/places/autocomplete?q=${encodeURIComponent(q)}&per_page=5`);
+    hits = (r.results || []).filter(p => p.location).map(p => { const [a,b] = p.location.split(","); return { lat:+a, lng:+b, label:p.display_name, full:p.display_name, country:"" }; }); }catch{} }
+  if (!hits.length) return setStatus("Couldn't find that place. Try adding the town or state.", true);
+  if (hits.length === 1) return choose(hits[0]);
+  setStatus("Which one?"); const box = $("#choices"); box.classList.remove("hidden");
+  box.innerHTML = hits.map((h, i) => `<button type="button" data-i="${i}">${esc(h.full)}</button>`).join("");
+  box.onclick = ev => { const b = ev.target.closest("button[data-i]"); if (b) choose(hits[+b.dataset.i]); };
+});
+function choose(h){ $("#choices").classList.add("hidden"); $("#choices").innerHTML = ""; $("#placeInput").value = "";
+  saveLoc({ lat:+h.lat.toFixed(5), lng:+h.lng.toFixed(5), label:h.label, country:h.country }); fitSearch(); setStatus(""); search(); }
+
+/* ---------- group chips ---------- */
+$("#groups").innerHTML = ORDER.map(k => `<div class="gchip g-${k}"><input type="checkbox" id="g-${k}" value="${k}" ${state.groups.has(k) ? "checked" : ""}><label for="g-${k}">${ic(k)}${GROUPS[k].label}</label></div>`).join("");
+$("#groups").addEventListener("change", e => { if (e.target.checked) state.groups.add(e.target.value); else state.groups.delete(e.target.value); ls.set("fh-groups", [...state.groups]); });
+$("#searchBtn").addEventListener("click", () => search());
+
+/* ---------- data lookups ---------- */
+async function inatTreeIds(){
+  const c = ls.get("fh-tree-ids", null); if (c?.length) return c;
+  const ids = (await pool(GROUPS.trees.families, 4, async f => { try{ const r = await getJSON(`${INAT}/taxa?q=${f}&rank=family&per_page=5`); return (r.results || []).find(t => t.name === f)?.id || null; }catch{ return null; } })).filter(Boolean);
+  if (ids.length) ls.set("fh-tree-ids", ids); return ids;
+}
+async function gbifKeys(g){
+  const cache = ls.get("fh-gbif-keys", {}); if (cache[g]?.length) return cache[g];
+  const list = g === "trees" ? GROUPS.trees.families.map(f => [f, "FAMILY"]) : (GROUPS[g].gbif || []);
+  const keys = (await pool(list, 4, async ([name, rank]) => { try{ const r = await getJSON(`${GBIF}/species/match?name=${encodeURIComponent(name)}&rank=${rank}&strict=true`); return r.usageKey && r.matchType !== "NONE" ? r.usageKey : null; }catch{ return null; } })).filter(Boolean);
+  if (keys.length){ cache[g] = keys; ls.set("fh-gbif-keys", cache); } return keys;
+}
+
+/* ---------- search: iNaturalist + GBIF ---------- */
+let seqN = 0;
+async function search(){
+  if (!state.loc) return setStatus("Set a location first: tap Near me or type a park.", true);
+  if (!state.groups.size) return setStatus("Pick at least one thing to hunt for.", true);
+  const seq = ++seqN; const btn = $("#searchBtn"); btn.disabled = true; btn.textContent = "Scouting the area…";
+  setStatus("Checking iNaturalist and GBIF records…"); $("#showAllBtn").classList.add("hidden"); $("#mapTitle").textContent = "Sightings map";
+  drawHere(); fitSearch();
+  const { lat, lng } = state.loc, km = state.radiusKm;
+  const groups = ORDER.filter(g => state.groups.has(g));
   try{
-    const { lat, lng } = state.loc;
-    const r = await getJSON(`${API}/observations?lat=${lat}&lng=${lng}&radius=${state.radius}&taxon_id=${id}&quality_grade=research&geo=true&per_page=200&order_by=observed_on&order=desc&locale=en`);
-    obsLayer.clearLayers();
-    const pts = [];
-    for (const o of r.results || []){ if (o.obscured || !o.geojson?.coordinates) continue; addPin(o, sp.group, true); pts.push([o.geojson.coordinates[1], o.geojson.coordinates[0]]); }
-    $("#showAllBtn").hidden = false;
-    if (pts.length){ map.fitBounds(pts, { padding:[30,30], maxZoom:17 }); setStatus(`${pts.length} sightings of ${sp.name}. Head for the clusters.`); }
-    else setStatus(sp.name + " has been seen here, but exact spots are hidden to protect it.");
-  }catch{ setStatus("Couldn't load sightings. Try again.", true); }
-}
-$("#showAllBtn").addEventListener("click", () => { state.sel = null; search(); });
+    const tids = groups.includes("trees") ? await inatTreeIds() : [];
+    const base = `lat=${lat}&lng=${lng}&radius=${km}&quality_grade=research&captive=false&locale=en`;
+    const results = await Promise.all(groups.map(async g => {
+      const f = GROUPS[g].inat ? `iconic_taxa=${GROUPS[g].inat}` : (tids.length ? `taxon_id=${tids.join(",")}` : null);
+      const gkeys = await gbifKeys(g).catch(() => []);
+      const [counts, obs, gb] = await Promise.all([
+        f ? getJSON(`${INAT}/observations/species_counts?${base}&${f}&per_page=60`).then(r => r.results || []).catch(() => []) : [],
+        f ? getJSON(`${INAT}/observations?${base}&${f}&geo=true&photos=true&per_page=150&order_by=observed_on&order=desc`).then(r => r.results || []).catch(() => []) : [],
+        gkeys.length ? getJSON(`${GBIF}/occurrence/search?geoDistance=${lat},${lng},${km}km&${gkeys.map(k => "taxonKey=" + k).join("&")}&hasCoordinate=true&hasGeospatialIssue=false&occurrenceStatus=PRESENT&year=1975,2100&limit=300`).then(r => r.results || []).catch(() => []) : []
+      ]);
+      return { g, counts, obs, gb };
+    }));
+    if (seq !== seqN) return;
 
-/* ---------- list ---------- */
-document.querySelector(".tabs").addEventListener("click", e => {
-  const b = e.target.closest(".tab"); if (!b) return;
-  state.view = b.dataset.v;
-  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-pressed", String(t === b)));
-  render();
-});
+    const bySci = new Map();
+    const put = s => { const k = s.sci.toLowerCase(); const cur = bySci.get(k);
+      if (!cur){ bySci.set(k, s); return; }
+      cur.count = Math.max(cur.count, s.count); cur.sources = [...new Set([...cur.sources, ...s.sources])];
+      cur.inatId ||= s.inatId; cur.gbifKey ||= s.gbifKey; cur.photo ||= s.photo;
+      if (cur.name === cur.sci && s.name !== s.sci) cur.name = s.name;
+      if (s.group === "trees") cur.group = "trees"; };
+    for (const { g, counts } of results) for (const c of counts){ const t = c.taxon; if (!t) continue;
+      put({ inatId:t.id, name: t.preferred_common_name ? cap(t.preferred_common_name) : t.name, sci:t.name, group:g, photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", count:c.count, sources:["iNaturalist"] }); }
+    const gbPins = [];
+    for (const { g, gb } of results){
+      const tally = new Map();
+      for (const r of gb){
+        if (r.datasetKey === INAT_GBIF_DATASET || !r.species || !r.speciesKey) continue;
+        const grp = (g === "plants" || g === "trees") ? g : (GBIF_CLASS[r.class] || GBIF_CLASS[r.order] || g);
+        const t = tally.get(r.speciesKey) || { gbifKey:r.speciesKey, sci:r.species, name:r.vernacularName ? cap(r.vernacularName) : r.species, group:grp, photo:"", count:0, sources:["GBIF"] };
+        t.count++;
+        if (!t.photo && r.media?.[0]?.identifier && /^https:/.test(r.media[0].identifier)) t.photo = r.media[0].identifier;
+        tally.set(r.speciesKey, t);
+        if (r.decimalLatitude != null && !(r.coordinateUncertaintyInMeters > 5000))
+          gbPins.push({ g:grp, sci:r.species, p:{ lat:r.decimalLatitude, lng:r.decimalLongitude, name:t.name, sci:r.species, date:String(r.eventDate || r.year || "").slice(0,10), src:r.datasetName || r.institutionCode || "GBIF", url:`https://www.gbif.org/occurrence/${r.key}` } });
+      }
+      for (const t of tally.values()) put(t);
+    }
+    // Give GBIF-only species a common name and photo from iNaturalist
+    const bare = [...bySci.values()].filter(s => !s.inatId).sort((a,b) => b.count - a.count).slice(0, 24);
+    if (bare.length){
+      setStatus("Adding photos for extra species found in GBIF…");
+      await pool(bare, 4, async s => { try{
+        const r = await getJSON(`${INAT}/taxa?q=${encodeURIComponent(s.sci)}&rank=species&per_page=3&locale=en`);
+        const t = (r.results || []).find(x => x.name.toLowerCase() === s.sci.toLowerCase()); if (!t) return;
+        s.inatId = t.id; if (t.preferred_common_name) s.name = cap(t.preferred_common_name);
+        s.photo = t.default_photo?.medium_url || t.default_photo?.square_url || s.photo;
+        if (t.iconic_taxon_name && ICONIC[t.iconic_taxon_name] && s.group !== "trees") s.group = ICONIC[t.iconic_taxon_name];
+      }catch{} });
+      if (seq !== seqN) return;
+    }
+    state.species = [...bySci.values()]
+      .map(s => ({ ...s, key: s.inatId ? keyOf(s.inatId) : "g" + s.gbifKey }))
+      .filter(s => state.groups.has(s.group))
+      .sort((a,b) => b.count - a.count);
+    mergeCustom();
 
-function render(){
-  const here = state.species;
-  const foundHere = here.filter(s => state.finds.has(s.id)).length;
-  $("#tally").innerHTML = `${foundHere}<small>of ${here.length} found here</small>`;
-  const list = $("#list");
-  if (state.view === "mine") return renderMine(list);
-  if (!here.length){ list.innerHTML = `<div class="empty">${state.loc ? "Tick some boxes and tap <b>Find species</b>." : "Tap <b>Use my location</b> or type a park, tick what you want to look for, then tap <b>Find species</b>."}</div>`; return; }
-  let rows = here;
-  if (state.view === "left") rows = here.filter(s => !state.finds.has(s.id));
-  if (state.view === "found") rows = here.filter(s => state.finds.has(s.id));
-  if (!rows.length){ list.innerHTML = `<div class="empty">${state.view === "found" ? "Nothing found yet. Tap <b>I found it</b> on a species to snap your photo." : "You've found everything on this list. Try more boxes or a bigger radius."}</div>`; return; }
-  const shown = rows.slice(0, state.showN);
-  list.innerHTML = shown.map(s => {
-    const f = state.finds.get(s.id);
-    return `<article class="card g-${s.group}${state.sel === s.id ? " sel" : ""}">
-      <div class="thumb">${s.photo ? `<img loading="lazy" src="${esc(s.photo)}" alt="${esc(s.name)}">` : ""}${f ? `<img class="mine" src="${esc(findURL(f))}" alt="Your photo">` : ""}</div>
-      <div class="info">
-        <span class="kind">${GROUPS[s.group].label.replace(/s$/, "")}</span>
-        <span class="name">${esc(s.name)}</span>
-        <span class="latin">${esc(s.sci)}</span>
-        <span class="meta">${s.custom ? '<span class="mine-tag">Added by you</span>' : `${s.count} sighting${s.count === 1 ? "" : "s"} within ${state.radius} km`}${f ? ` · <span class="found">Found ${esc(new Date(f.at).toLocaleDateString())}</span>` : ""}</span>
-        <div class="actions">
-          <button class="btn ghost" data-map="${s.id}">Show on map</button>
-          <button class="btn" data-shoot="${s.id}">${f ? "Retake photo" : "I found it"}</button>
-          <a href="https://www.inaturalist.org/taxa/${s.id}" target="_blank" rel="noopener">About ↗</a>
-          ${s.custom ? `<button class="btn ghost" data-unadd="${s.id}">Remove</button>` : ""}
-        </div>
-      </div></article>`;
-  }).join("") + (rows.length > state.showN ? `<button class="btn ghost more" id="moreBtn">Show ${Math.min(30, rows.length - state.showN)} more</button>` : "");
-}
-function renderMine(list){
-  const all = [...state.finds.values()].sort((a,b) => String(b.at).localeCompare(String(a.at)));
-  if (!all.length){ list.innerHTML = '<div class="empty">Your photo finds from every trip show up here.</div>'; return; }
-  list.innerHTML = all.map(f => `<article class="card g-${f.group}">
-      <div class="thumb"><img src="${esc(findURL(f))}" alt="Your photo of ${esc(f.name)}"></div>
-      <div class="info">
-        <span class="kind">${esc(GROUPS[f.group]?.label.replace(/s$/, "") || "")}</span>
-        <span class="name">${esc(f.name)}</span>
-        <span class="latin">${esc(f.sci)}</span>
-        <span class="meta">${esc(new Date(f.at).toLocaleDateString())}${f.place ? " · " + esc(f.place) : ""}</span>
-        <div class="actions" data-row="${f.id}"><button class="btn ghost" data-del="${f.id}">Remove</button></div>
-      </div></article>`).join("");
+    obsLayer.clearLayers(); let pins = 0;
+    const gOf = new Map(state.species.map(s => [s.sci.toLowerCase(), s]));
+    for (const { g, obs } of results) for (const o of obs){
+      if (o.obscured || !o.geojson?.coordinates) continue;
+      const sp = gOf.get((o.taxon?.name || "").toLowerCase());
+      addPin({ lat:o.geojson.coordinates[1], lng:o.geojson.coordinates[0], name: sp?.name || cap(o.taxon?.preferred_common_name) || o.taxon?.name, sci:o.taxon?.name, img:o.photos?.[0]?.url?.replace("square","small"), date:o.observed_on, src:"iNaturalist", url:`https://www.inaturalist.org/observations/${o.id}` }, sp?.group || g); pins++;
+    }
+    for (const b of gbPins.slice(0, 400)){ const sp = gOf.get(b.sci.toLowerCase()); if (sp) b.p.name = sp.name; addPin(b.p, sp?.group || b.g); pins++; }
+    drawFinds();
+    const n = state.species.length, gOnly = state.species.filter(s => s.sources.length === 1 && s.sources[0] === "GBIF").length;
+    setStatus(n ? `${n} species recorded within ${fmtDist(km)}${gOnly ? `, including ${gOnly} only found in GBIF` : ""}. ${pins} sightings on the map.` : `No records within ${fmtDist(km)}. Try a bigger distance or more groups.`, !n);
+    state.showN = 40; renderGrid();
+  }catch{
+    if (seq === seqN) setStatus("Couldn't reach the species databases. Check your signal and try again.", true);
+  }finally{ if (seq === seqN){ btn.disabled = false; btn.textContent = "Start the hunt"; } }
 }
 
-$("#list").addEventListener("click", async e => {
-  const t = e.target.closest("button"); if (!t) return;
-  if (t.id === "moreBtn"){ state.showN += 30; render(); return; }
-  if (t.dataset.map){ showOnMap(+t.dataset.map); return; }
-  if (t.dataset.unadd){ removeCustom(+t.dataset.unadd); return; }
-  if (t.dataset.shoot){ state.pending = +t.dataset.shoot; $("#cam").value = ""; $("#cam").click(); return; }
-  if (t.dataset.del){
-    const row = t.closest("[data-row]");
-    row.innerHTML = `<span class="confirm">Delete this photo?</span><button class="btn" data-yes="${t.dataset.del}">Delete</button><button class="btn ghost" data-no="1">Keep</button>`;
-    return;
-  }
-  if (t.dataset.no){ render(); return; }
-  if (t.dataset.yes){
-    const id = +t.dataset.yes;
-    try{ await idb.del(id); }catch{}
-    if (urls.has(id)){ URL.revokeObjectURL(urls.get(id)); urls.delete(id); }
-    state.finds.delete(id); drawFinds(); render();
-  }
-});
-
-/* ---------- camera ---------- */
-async function shrink(file){
-  try{
-    const bmp = await createImageBitmap(file);
-    const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
-    const c = document.createElement("canvas"); c.width = Math.round(bmp.width*k); c.height = Math.round(bmp.height*k);
-    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
-    return await new Promise(r => c.toBlob(b => r(b || file), "image/jpeg", 0.85));
-  }catch{ return file; }
-}
-const here = () => new Promise(res => {
-  if (!navigator.geolocation) return res(null);
-  navigator.geolocation.getCurrentPosition(p => res({ lat:p.coords.latitude, lng:p.coords.longitude }), () => res(null), { enableHighAccuracy:true, timeout:8000, maximumAge:30000 });
-});
-$("#cam").addEventListener("change", async () => {
-  const file = $("#cam").files?.[0]; const id = state.pending; state.pending = null;
-  const sp = state.species.find(s => s.id === id); if (!file || !sp) return;
-  setStatus("Saving your photo of " + sp.name + "…");
-  const [photo, pos] = await Promise.all([shrink(file), here()]);
-  const rec = { id, name:sp.name, sci:sp.sci, group:sp.group, photo, at:new Date().toISOString(),
-    lat: pos?.lat ?? null, lng: pos?.lng ?? null, place: state.loc?.label || "" };
-  try{
-    await idb.put(rec);
-    if (urls.has(id)){ URL.revokeObjectURL(urls.get(id)); urls.delete(id); }
-    state.finds.set(id, rec); drawFinds(); render();
-    setStatus("Nice! " + sp.name + " ticked off.");
-  }catch{ setStatus("Couldn't save the photo. Your phone may be low on storage.", true); }
-});
-
-/* ---------- add your own species ---------- */
-const customs = () => ls.get("fh-custom", []);
-function kmBetween(a, b){
-  const R = 6371, toR = x => x * Math.PI / 180;
-  const dLat = toR(b.lat - a.lat), dLng = toR(b.lng - a.lng);
-  const h = Math.sin(dLat/2)**2 + Math.cos(toR(a.lat)) * Math.cos(toR(b.lat)) * Math.sin(dLng/2)**2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
+/* ---------- species you add yourself ---------- */
+const customs = () => ls.get("fh-custom", []).map(c => ({ ...c, key: keyOf(c.key ?? c.id) }));
+function kmBetween(a, b){ const R = 6371, r = x => x * Math.PI / 180; const dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
+  const h = Math.sin(dLat/2)**2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng/2)**2; return 2 * R * Math.asin(Math.sqrt(h)); }
 function mergeCustom(){
-  if (!state.loc) return;
-  const have = new Set(state.species.map(s => s.id));
-  const near = customs().filter(c => !have.has(c.id) && kmBetween(c, state.loc) <= Math.max(state.radius, 2));
-  state.species = [...near.map(c => ({ ...c, count:0, custom:true })), ...state.species];
+  if (!state.loc) return; const have = new Set(state.species.map(s => s.key));
+  const near = customs().filter(c => !have.has(c.key) && kmBetween(c, state.loc) <= Math.max(state.radiusKm, 2));
+  state.species = [...near.map(c => ({ ...c, inatId: c.inatId ?? c.id, count:0, custom:true, sources:["Added by you"] })), ...state.species];
 }
-function removeCustom(id){
-  ls.set("fh-custom", customs().filter(c => c.id !== id));
-  state.species = state.species.filter(s => !(s.custom && s.id === id));
-  render();
-}
-$("#addBtn").addEventListener("click", () => {
-  const p = $("#addPanel"); p.hidden = !p.hidden;
-  $("#addBtn").setAttribute("aria-expanded", String(!p.hidden));
-  if (!p.hidden) $("#addInput").focus();
-});
-let addTimer = null, addSeq = 0, lastHits = [];
+$("#addBtn").addEventListener("click", () => { const p = $("#addPanel"); p.classList.toggle("hidden"); const open = !p.classList.contains("hidden"); $("#addBtn").setAttribute("aria-expanded", String(open)); if (open) $("#addInput").focus(); });
+let addT = null, addSeq = 0, lastHits = [];
 $("#addInput").addEventListener("input", e => {
-  clearTimeout(addTimer);
-  const q = e.target.value.trim();
-  if (q.length < 2){ $("#hits").innerHTML = ""; return; }
-  addTimer = setTimeout(async () => {
-    const seq = ++addSeq;
-    try{
-      const r = await getJSON(`${API}/taxa/autocomplete?q=${encodeURIComponent(q)}&per_page=8&locale=en`);
-      if (seq !== addSeq) return;
+  clearTimeout(addT); const q = e.target.value.trim(); if (q.length < 2){ $("#hits").innerHTML = ""; return; }
+  addT = setTimeout(async () => { const s = ++addSeq;
+    try{ const r = await getJSON(`${INAT}/taxa/autocomplete?q=${encodeURIComponent(q)}&per_page=8&locale=en`); if (s !== addSeq) return;
       lastHits = (r.results || []).filter(t => t.rank_level <= 10);
-      $("#hits").innerHTML = lastHits.length ? lastHits.map((t, i) => `
-        <button class="hit" type="button" data-hit="${i}">
-          ${t.default_photo?.square_url ? `<img src="${esc(t.default_photo.square_url)}" alt="">` : '<span class="ph"></span>'}
-          <span><b>${esc(t.preferred_common_name ? cap(t.preferred_common_name) : t.name)}</b><i>${esc(t.name)}</i></span>
-        </button>`).join("") : '<p class="meta">No species match that name. Try the scientific name.</p>';
-    }catch{ if (seq === addSeq) $("#hits").innerHTML = '<p class="meta">Couldn\'t search right now. Check your signal.</p>'; }
-  }, 350);
+      $("#hits").innerHTML = lastHits.length ? lastHits.map((t, i) => `<button class="hit" type="button" data-hit="${i}">${t.default_photo?.square_url ? `<img src="${esc(t.default_photo.square_url)}" alt="">` : '<span class="ph0"></span>'}<span><b>${esc(t.preferred_common_name ? cap(t.preferred_common_name) : t.name)}</b><i>${esc(t.name)}</i></span></button>`).join("") : '<p class="hint">No species match. Try the scientific name.</p>';
+    }catch{ if (s === addSeq) $("#hits").innerHTML = '<p class="hint">Couldn\'t search right now. Check your signal.</p>'; } }, 350);
 });
 $("#hits").addEventListener("click", e => {
   const b = e.target.closest("button[data-hit]"); if (!b) return;
-  if (!state.loc){ setStatus("Set a location first, so the species is saved for this place.", true); return; }
-  const t = lastHits[+b.dataset.hit];
-  const name = t.preferred_common_name ? cap(t.preferred_common_name) : t.name;
-  if (state.species.some(s => s.id === t.id)){ setStatus(name + " is already on your list."); }
-  else{
-    const rec = { id:t.id, name, sci:t.name, group: ICONIC_TO_GROUP[t.iconic_taxon_name] || "other",
-      photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", lat:state.loc.lat, lng:state.loc.lng, at:new Date().toISOString() };
-    ls.set("fh-custom", [...customs().filter(c => c.id !== t.id), rec]);
-    state.species = [{ ...rec, count:0, custom:true }, ...state.species];
-    setStatus(name + " added to your list for this area.");
+  if (!state.loc) return setStatus("Set a location first, so the species is saved for this place.", true);
+  const t = lastHits[+b.dataset.hit]; const name = t.preferred_common_name ? cap(t.preferred_common_name) : t.name; const key = keyOf(t.id);
+  if (state.species.some(s => s.key === key)) toast(`${esc(name)} is already on your cards`);
+  else {
+    const rec = { key, id:t.id, inatId:t.id, name, sci:t.name, group: ICONIC[t.iconic_taxon_name] || "other", photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", lat:state.loc.lat, lng:state.loc.lng, at:new Date().toISOString() };
+    ls.set("fh-custom", [...ls.get("fh-custom", []).filter(c => keyOf(c.key ?? c.id) !== key), rec]);
+    state.species = [{ ...rec, count:0, custom:true, sources:["Added by you"] }, ...state.species];
+    toast(`Added <b>${esc(name)}</b> to this area`);
   }
-  $("#addInput").value = ""; $("#hits").innerHTML = ""; $("#addPanel").hidden = true; $("#addBtn").setAttribute("aria-expanded","false");
-  state.view = "all"; document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === "all")));
-  render();
+  $("#addInput").value = ""; $("#hits").innerHTML = ""; $("#addPanel").classList.add("hidden"); $("#addBtn").setAttribute("aria-expanded","false");
+  state.view = "all"; $$("#listSeg button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === "all"))); renderGrid();
 });
+function removeCustom(key){ ls.set("fh-custom", ls.get("fh-custom", []).filter(c => keyOf(c.key ?? c.id) !== key)); state.species = state.species.filter(s => !(s.custom && s.key === key)); closeSheet(); renderGrid(); }
+
+/* ---------- field cards ---------- */
+$("#listSeg").addEventListener("click", e => { const b = e.target.closest("button[data-v]"); if (!b) return; state.view = b.dataset.v; $$("#listSeg button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderGrid(); });
+function renderGrid(){
+  const sp = state.species, got = sp.filter(s => isGot(state.finds.get(s.key))).length;
+  $("#collected").textContent = `${got} of ${sp.length} collected`;
+  const grid = $("#grid");
+  if (!sp.length){ grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${state.loc ? "Pick what to hunt for and tap <b>Start the hunt</b>." : "Tap <b>Near me</b> or type a park, pick what to hunt for, then tap <b>Start the hunt</b>. Every species you photograph earns XP, and rarer finds earn more."}</div>`; return; }
+  let rows = sp;
+  if (state.view === "left") rows = sp.filter(s => !isGot(state.finds.get(s.key)));
+  if (state.view === "found") rows = sp.filter(s => isGot(state.finds.get(s.key)));
+  if (!rows.length){ grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${state.view === "found" ? "No cards collected here yet. Tap a card and photograph it when you spot it." : "You've collected every card here. Try more groups or a bigger distance."}</div>`; return; }
+  grid.innerHTML = rows.slice(0, state.showN).map(s => {
+    const f0 = state.finds.get(s.key), f = isGot(f0) ? f0 : null, r = rarityOf(s);
+    return `<button class="tcard r-${r.id} g-${s.group}${f ? " got" : ""}" type="button" data-k="${esc(s.key)}" aria-label="${esc(s.name)}, ${r.label}${f ? ", collected" : ""}">
+      <div class="ph">${s.photo ? `<img loading="lazy" src="${esc(s.photo)}" alt="">` : ""}<span class="rib">${r.label}</span><span class="pts">${f ? "Got" : "+" + r.pts}</span>
+        ${f ? `<img class="stamp" src="${esc(findURL(f))}" alt=""><span class="found-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Collected</span>` : ""}</div>
+      <div class="body"><span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")}</span><span class="nm">${esc(s.name)}</span><span class="sci">${esc(s.sci)}</span></div></button>`;
+  }).join("") + (rows.length > state.showN ? `<button class="btn soft more" id="moreBtn" type="button">Show ${Math.min(40, rows.length - state.showN)} more</button>` : "");
+}
+$("#grid").addEventListener("click", e => {
+  if (e.target.closest("#moreBtn")){ state.showN += 40; renderGrid(); return; }
+  const c = e.target.closest(".tcard"); if (c) openSheet(c.dataset.k);
+});
+
+/* ---------- species sheet ---------- */
+let sheetKey = null;
+function openSheet(key){
+  const s = state.species.find(x => x.key === key); if (!s) return; sheetKey = key;
+  const f0 = state.finds.get(key), f = isGot(f0) ? f0 : null, r = rarityOf(s);
+  const more = s.inatId ? `https://www.inaturalist.org/taxa/${s.inatId}` : `https://www.gbif.org/species/${s.gbifKey}`;
+  $("#sheet").className = `sheet on r-${r.id}`;
+  $("#sheet").innerHTML = `<div class="hero">${s.photo ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}">` : ""}<button class="close" id="sheetClose" type="button" aria-label="Close">×</button></div>
+    <div class="inner">
+      <div class="tags"><span class="tag rar">${r.label} · +${r.pts} XP</span><span class="tag">${esc(GROUPS[s.group]?.one || "Wildlife")}</span></div>
+      <h2 id="sheetTitle">${esc(s.name)}</h2><div class="sci">${esc(s.sci)}</div>
+      <p class="hint">${s.custom ? "You added this species to this area." : `${s.count} record${s.count === 1 ? "" : "s"} within ${fmtDist(state.radiusKm)}`} · From ${esc(s.sources.join(" + "))}</p>
+      ${verdictBox(f0)}
+      ${f ? `<div class="mine-photo"><img src="${esc(findURL(f))}" alt="Your photo"><div><b>Collected ${esc(new Date(f.at).toLocaleDateString())}</b><br><span class="hint">+${f.points || 0} XP earned</span></div></div>` : ""}
+      <div class="acts">
+        <button class="btn big sun" id="shootBtn" type="button" style="grid-column:1/-1">${f ? "Retake photo" : f0?.verdict === "no" ? "Try another photo" : "I found it! Take a photo"}</button>
+        <button class="btn soft" id="mapBtn" type="button">Show on map</button>
+        <a class="btn soft" href="${esc(more)}" target="_blank" rel="noopener">Learn more ↗</a>
+        ${s.custom ? `<button class="btn soft" id="unaddBtn" type="button" style="grid-column:1/-1">Remove from this area</button>` : ""}
+      </div>
+    </div>`;
+  $("#scrim").classList.add("on");
+  $("#sheetClose").onclick = closeSheet;
+  $("#shootBtn").onclick = () => { state.pending = key; $("#cam").value = ""; $("#cam").click(); };
+  $("#mapBtn").onclick = () => { closeSheet(); showOnMap(key); };
+  if (s.custom) $("#unaddBtn").onclick = () => removeCustom(key);
+}
+function closeSheet(){ $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); sheetKey = null; }
+$("#scrim").addEventListener("click", closeSheet);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSheet(); });
+
+async function showOnMap(key){
+  const s = state.species.find(x => x.key === key); if (!s || !state.loc) return;
+  showTab("map"); $("#mapTitle").textContent = s.name; $("#showAllBtn").classList.remove("hidden");
+  obsLayer.clearLayers(); const pts = [];
+  const { lat, lng } = state.loc, km = state.radiusKm;
+  const [a, b] = await Promise.all([
+    s.inatId ? getJSON(`${INAT}/observations?lat=${lat}&lng=${lng}&radius=${km}&taxon_id=${s.inatId}&quality_grade=research&geo=true&per_page=200&order_by=observed_on&order=desc&locale=en`).then(r => r.results || []).catch(() => []) : [],
+    s.gbifKey ? getJSON(`${GBIF}/occurrence/search?geoDistance=${lat},${lng},${km}km&taxonKey=${s.gbifKey}&hasCoordinate=true&hasGeospatialIssue=false&limit=300`).then(r => r.results || []).catch(() => []) : []
+  ]);
+  for (const o of a){ if (o.obscured || !o.geojson?.coordinates) continue; const p = { lat:o.geojson.coordinates[1], lng:o.geojson.coordinates[0], name:s.name, sci:s.sci, img:o.photos?.[0]?.url?.replace("square","small"), date:o.observed_on, src:"iNaturalist", url:`https://www.inaturalist.org/observations/${o.id}` }; addPin(p, s.group, true); pts.push([p.lat, p.lng]); }
+  for (const r of b){ if (r.datasetKey === INAT_GBIF_DATASET || r.decimalLatitude == null) continue; const p = { lat:r.decimalLatitude, lng:r.decimalLongitude, name:s.name, sci:s.sci, date:String(r.eventDate || r.year || "").slice(0,10), src:r.datasetName || "GBIF", url:`https://www.gbif.org/occurrence/${r.key}` }; addPin(p, s.group, true); pts.push([p.lat, p.lng]); }
+  if (pts.length){ map.fitBounds(pts, { padding:[40,40], maxZoom:17 }); toast(`${pts.length} sighting${pts.length === 1 ? "" : "s"} of ${esc(s.name)}`); }
+  else toast(`No exact spots for ${esc(s.name)}. They may be hidden to protect it.`, 3500);
+}
+$("#showAllBtn").addEventListener("click", () => { showTab("hunt"); search(); });
+
+/* ---------- camera & scoring ---------- */
+async function shrink(file){ try{ const bmp = await createImageBitmap(file); const k = Math.min(1, 1400 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas"); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k); c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  return await new Promise(r => c.toBlob(b => r(b || file), "image/jpeg", .85)); }catch{ return file; } }
+const herePos = () => new Promise(res => { if (!navigator.geolocation) return res(null);
+  navigator.geolocation.getCurrentPosition(p => res({ lat:p.coords.latitude, lng:p.coords.longitude }), () => res(null), { enableHighAccuracy:true, timeout:8000, maximumAge:30000 }); });
+const dayKey = d => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`; };
+const recId = key => state.owner === "guest" ? key : `${state.owner}:${key}`;
+
+function verdictBox(f){
+  if (!f || !f.verdict) return f ? `<div class="verdict">Guest find, not checked yet. Make an account and it gets checked by the species AI.</div>` : "";
+  if (f.verdict === "pending") return `<div class="verdict">Your photo is waiting to be checked. It will be checked next time you have signal.</div>`;
+  if (f.verdict === "yes") return `<div class="verdict yes">Verified by the species AI${f.note ? `: ${esc(f.note)}` : ""}</div>`;
+  if (f.verdict === "unsure") return `<div class="verdict unsure">Half points. The AI wasn't sure${f.note ? `. It saw: ${esc(f.note)}` : ""}. Retake a clearer photo to try for full points.</div>`;
+  return `<div class="verdict no">No points for this photo${f.note ? `. The AI saw: ${esc(f.note)}` : ""}. Try another photo of the real thing.</div>`;
+}
+async function saveRec(rec){ await idb.put(rec); dropURL(rec.id); state.finds.set(rec.key, rec); }
+function refreshAll(){ drawFinds(); renderGrid(); renderRanger(); if ($("#tab-journal").classList.contains("on")) renderJournal(); if (sheetKey && state.finds.has(sheetKey)) openSheet(sheetKey); }
+
+function guestScore(s, pos){
+  const r = rarityOf(s), parts = [`${r.label} +${r.pts}`]; let points = r.pts;
+  const all = [...state.finds.values()].filter(isGot);
+  if (!all.some(f => dayKey(f.at) === dayKey(Date.now()))){ points += 10; parts.push("First find today +10"); }
+  const p = pos || state.loc;
+  if (p && all.length && !all.some(f => f.lat != null && kmBetween(f, p) < 10)){ points += 20; parts.push("New area +20"); }
+  return { points, parts };
+}
+
+// Upload a photo and have the server check it and award points
+async function verifyRec(rec){
+  if (!state.sb || !state.user) return { ok:false, error:"Sign in to get photos checked." };
+  const path = `${state.user.id}/${rec.key}-${Date.now()}.jpg`;
+  try{
+    const up = await state.sb.storage.from("photos").upload(path, rec.photo, { contentType:"image/jpeg", upsert:false });
+    if (up.error) return { ok:false, error:"Couldn't upload the photo. It will be checked later." };
+    const { data, error } = await state.sb.functions.invoke("verify-find", { body:{
+      species_key:rec.key, name:rec.name, sci:rec.sci, group:rec.group, photo_path:path, lat:rec.lat, lng:rec.lng,
+      place:rec.place, country:rec.country, radius_km:state.radiusKm, tz:new Date().getTimezoneOffset(), found_at:rec.at } });
+    if (error){
+      let msg = "Couldn't check the photo right now. It will be checked later.";
+      try{ const j = await error.context?.json?.(); if (j?.error) msg = j.error; }catch{}
+      state.sb.storage.from("photos").remove([path]).catch(() => {});
+      return { ok:false, error:msg };
+    }
+    Object.assign(rec, { verdict:data.verdict, note:data.note || "", points:data.points, rarity:data.rarity, photo_path:data.photo_path });
+    await saveRec(rec);
+    return { ok:true, data };
+  }catch{ return { ok:false, error:"Couldn't check the photo right now. It will be checked later." }; }
+}
+const aN = w => (/^[aeiou]/i.test(w) ? "an " : "a ") + w;
+function verdictToast(rec, data){
+  const n = esc(rec.name);
+  if (data.rescored === false) return toast("Photo updated");
+  const parts = (data.parts || []).length ? `<br><small style="font-weight:700;opacity:.8">${esc(data.parts.join(" · "))}</small>` : "";
+  if (data.verdict === "yes") toast(`<span class="xpg">+${data.points} XP</span><span>${n} verified!${parts}</span>`, 4200);
+  else if (data.verdict === "unsure") toast(`<span class="xpg">+${data.points} XP</span><span>Half points: the AI wasn't sure it's ${aN(n)}.${parts}</span>`, 5000);
+  else toast(`<span class="xpg">0 XP</span><span>${data.note ? esc(data.note) : `That doesn't look like ${aN(n)}`}. Try another photo.</span>`, 5500);
+}
+
+$("#cam").addEventListener("change", async () => {
+  const file = $("#cam").files?.[0]; const key = state.pending; state.pending = null;
+  const s = state.species.find(x => x.key === key); if (!file || !s) return;
+  const before = snapshot();
+  const [photo, pos] = await Promise.all([shrink(file), herePos()]);
+  const old = state.finds.get(key);
+  const base = { id: old?.id ?? recId(key), owner: state.owner, key, name:s.name, sci:s.sci, group:s.group, photo,
+    at: old?.at || new Date().toISOString(),
+    lat: pos?.lat ?? old?.lat ?? state.loc?.lat ?? null, lng: pos?.lng ?? old?.lng ?? state.loc?.lng ?? null,
+    place: state.loc?.label || old?.place || "", country: state.loc?.country || old?.country || "" };
+  try{
+    if (state.user){
+      const rec = { ...base, rarity: old?.rarity || rarityOf(s).id, points: old?.points || 0, verdict: old?.verdict === "yes" ? "yes" : "pending", note: old?.note || "", photo_path: old?.photo_path };
+      await saveRec(rec); refreshAll();
+      toast("Checking your photo…", 1800);
+      const res = await verifyRec(rec);
+      refreshAll();
+      if (!res.ok) return toast(esc(res.error), 4500);
+      verdictToast(rec, res.data); if (res.data.points > 0) celebrate(before);
+    } else {
+      if (isGot(old)){ await saveRec({ ...old, photo }); refreshAll(); return toast("Photo updated"); }
+      const { points, parts } = guestScore(s, pos);
+      await saveRec({ ...base, rarity: rarityOf(s).id, points, verdict: null }); refreshAll();
+      toast(`<span class="xpg">+${points} XP</span><span>${esc(s.name)} collected!<br><small style="font-weight:700;opacity:.8">${esc(parts.join(" · "))}${state.sb ? " · Make an account to get it verified" : ""}</small></span>`, 4200);
+      celebrate(before);
+    }
+  }catch{ toast("Couldn't save the photo. Your phone may be low on storage.", 3500); }
+});
+
+/* ---------- levels, streaks, badges ---------- */
+function totals(){
+  const all = [...state.finds.values()].filter(isGot); const xp = all.reduce((a, f) => a + (f.points || 0), 0);
+  const by = g => all.filter(f => f.group === g).length;
+  const days = [...new Set(all.map(f => dayKey(f.at)))].sort();
+  let best = 0, run = 0, prev = null;
+  for (const d of days){ const t = new Date(d + "T12:00:00"); run = prev && (t - prev) / 864e5 < 1.5 ? run + 1 : 1; best = Math.max(best, run); prev = t; }
+  let cur = 0; { const set = new Set(days); const d = new Date(); if (!set.has(dayKey(d))) d.setDate(d.getDate() - 1); while (set.has(dayKey(d))){ cur++; d.setDate(d.getDate() - 1); } }
+  const places = []; for (const f of all){ if (f.lat == null) continue; if (!places.some(p => kmBetween(p, f) < 10)) places.push(f); }
+  return { all, xp, n: all.length, by, cur, best, places: places.length,
+    rare: all.filter(f => ["rare","epic","legendary"].includes(f.rarity)).length, legend: all.filter(f => f.rarity === "legendary").length };
+}
+const BADGES = [
+  { id:"first",    name:"First Steps",     desc:"Collect 1 species",        c:"--moss",      icon:"compass",    t:x => x.n >= 1 },
+  { id:"ten",      name:"Collector",       desc:"Collect 10 species",       c:"--sky",       icon:"book",       t:x => x.n >= 10 },
+  { id:"fifty",    name:"Living Library",  desc:"Collect 50 species",       c:"--r-epic",    icon:"book",       t:x => x.n >= 50 },
+  { id:"scales",   name:"Scale Seeker",    desc:"3 reptiles",               c:"--reptile",   icon:"reptiles",   t:x => x.by("reptiles") >= 3 },
+  { id:"frog",     name:"Frog Whisperer",  desc:"3 amphibians",             c:"--amphibian", icon:"amphibians", t:x => x.by("amphibians") >= 3 },
+  { id:"herper",   name:"Herper",          desc:"10 reptiles + amphibians", c:"--reptile",   icon:"reptiles",   t:x => x.by("reptiles") + x.by("amphibians") >= 10 },
+  { id:"fish",     name:"Sharp-eyed Angler", desc:"3 fish",                 c:"--fish",      icon:"fish",       t:x => x.by("fish") >= 3 },
+  { id:"paws",     name:"Paw Prints",      desc:"3 mammals",                c:"--mammal",    icon:"mammals",    t:x => x.by("mammals") >= 3 },
+  { id:"birder",   name:"Birder",          desc:"10 birds",                 c:"--bird",      icon:"birds",      t:x => x.by("birds") >= 10 },
+  { id:"botanist", name:"Botanist",        desc:"10 plants",                c:"--plant",     icon:"plants",     t:x => x.by("plants") >= 10 },
+  { id:"trees",    name:"Tree Hugger",     desc:"5 trees",                  c:"--tree",      icon:"trees",      t:x => x.by("trees") >= 5 },
+  { id:"rare",     name:"Rare Find",       desc:"A Rare card or better",    c:"--r-rare",    icon:"gem",        t:x => x.rare >= 1 },
+  { id:"legend",   name:"Legendary",       desc:"A Legendary card",         c:"--r-legend",  icon:"star",       t:x => x.legend >= 1 },
+  { id:"streak3",  name:"On a Roll",       desc:"3-day streak",             c:"--sun",       icon:"flame",      t:x => x.best >= 3 },
+  { id:"streak7",  name:"Week Outdoors",   desc:"7-day streak",             c:"--sun",       icon:"flame",      t:x => x.best >= 7 },
+  { id:"explorer", name:"Explorer",        desc:"Finds in 3 places",        c:"--sky",       icon:"compass",    t:x => x.places >= 3 }
+];
+const snapshot = () => { const t = totals(); return { lvl: levelFor(t.xp).n, badges: new Set(BADGES.filter(b => b.t(t)).map(b => b.id)) }; };
+function celebrate(before){
+  const t = totals(), lv = levelFor(t.xp).n;
+  setTimeout(() => {
+    if (lv > before.lvl) toast(`<span class="xpg">Level ${lv}</span><span>You're now a ${esc(titleFor(lv))}!</span>`, 4000);
+    for (const b of BADGES) if (b.t(t) && !before.badges.has(b.id)) toast(`<span class="xpg">Badge</span><span>${esc(b.name)} unlocked</span>`, 4000);
+  }, 900);
+}
+function renderRanger(){
+  const t = totals(), L = levelFor(t.xp);
+  $("#rName").textContent = state.username || "Guest ranger";
+  $("#avatar").textContent = (state.username || "R").charAt(0).toUpperCase();
+  $("#rTitle").textContent = `Level ${L.n} · ${titleFor(L.n)}`;
+  $("#xpLabel").textContent = `XP to level ${L.n + 1}`;
+  $("#xpNums").textContent = `${t.xp - L.lo} / ${L.hi - L.lo}`;
+  $("#xpBar").style.width = Math.max(2, (t.xp - L.lo) / (L.hi - L.lo) * 100) + "%";
+  $("#streakN").textContent = t.cur;
+}
+function renderJournal(){
+  const t = totals();
+  $("#sSpecies").textContent = t.n; $("#sXP").textContent = t.xp; $("#sStreak").textContent = t.best; $("#sPlaces").textContent = t.places;
+  $("#badges").innerHTML = BADGES.map(b => { const on = b.t(t); return `<div class="badge${on ? "" : " locked"}" style="--bc:var(${b.c})"><div class="medal">${ic(b.icon)}</div><b>${esc(b.name)}</b><small>${esc(b.desc)}</small></div>`; }).join("");
+  const all = [...state.finds.values()].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  $("#mygrid").innerHTML = all.length ? all.map(f => `<button class="myf" data-k="${esc(f.key)}" type="button"><img src="${esc(findURL(f))}" alt="">${f.verdict ? `<em class="vchip ${esc(f.verdict)}">${VERDICT[f.verdict] || ""}</em>` : ""}<span>${esc(f.name)}</span></button>`).join("") : '<div class="empty" style="grid-column:1/-1">Your photos appear here as you collect species.</div>';
+}
+$("#mygrid").addEventListener("click", e => {
+  const b = e.target.closest(".myf"); if (!b) return; const f = state.finds.get(b.dataset.k); if (!f) return;
+  $("#sheet").className = "sheet on";
+  $("#sheet").innerHTML = `<div class="hero"><img src="${esc(findURL(f))}" alt="Your photo of ${esc(f.name)}"><button class="close" id="sheetClose" type="button" aria-label="Close">×</button></div>
+    <div class="inner"><h2 id="sheetTitle">${esc(f.name)}</h2><div class="sci">${esc(f.sci)}</div>
+    <p class="hint">Found ${esc(new Date(f.at).toLocaleDateString())}${f.place ? " at " + esc(f.place) : ""} · +${f.points || 0} XP</p>
+    ${verdictBox(f)}
+    <div id="delRow"><button class="btn soft" id="delBtn" type="button">Delete this find</button></div></div>`;
+  $("#scrim").classList.add("on"); $("#sheetClose").onclick = closeSheet;
+  $("#delBtn").onclick = () => {
+    $("#delRow").innerHTML = `<p class="hint">This removes the photo and its XP${state.user ? " from your account" : " from this phone"}.</p><div class="acts"><button class="btn" id="delYes" type="button" style="background:var(--danger)">Delete</button><button class="btn soft" id="delNo" type="button">Keep it</button></div>`;
+    $("#delNo").onclick = closeSheet;
+    $("#delYes").onclick = async () => {
+      if (state.user && f.owner === state.user.id){
+        try{ await state.sb.from("finds").delete().eq("user_id", state.user.id).eq("species_key", f.key); if (f.photo_path) await state.sb.storage.from("photos").remove([f.photo_path]); }catch{}
+      }
+      try{ await idb.del(f.id); }catch{}
+      dropURL(f.id); state.finds.delete(f.key); closeSheet(); refreshAll(); renderJournal();
+    };
+  };
+});
+
+/* ---------- accounts & leaderboards (Supabase) ---------- */
+const CFG = window.FIELD_HUNT_CONFIG || {};
+if (CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase?.createClient){ try{ state.sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey); }catch{} }
+const emailFor = u => `${u.toLowerCase()}@players.fieldhunt.app`;
+const USER_RE = /^[A-Za-z0-9_]{3,20}$/;
+
+async function allRecs(){ try{ return (await idb.all()) || []; }catch{ return []; } }
+async function loadFinds(){
+  for (const f of state.finds.values()) dropURL(f.id);
+  state.finds = new Map();
+  const recs = await allRecs();
+  for (const f of recs){ const owner = f.owner || "guest"; if (owner !== state.owner) continue;
+    f.owner = owner; f.key = keyOf(f.key ?? f.id); f.points ??= 10; f.rarity ??= "common"; if (f.verdict === undefined) f.verdict = null; state.finds.set(f.key, f); }
+  state.guestCount = recs.filter(f => (f.owner || "guest") === "guest").length;
+  refreshAll();
+}
+let sessionQ = Promise.resolve();
+const reloadSession = () => (sessionQ = sessionQ.then(loadSession).catch(() => {}));
+async function loadSession(){
+  if (!state.sb) return;
+  const { data } = await state.sb.auth.getSession(); const user = data?.session?.user || null;
+  const changed = (user?.id || null) !== (state.user?.id || null);
+  state.user = user;
+  if (user){ const { data:p } = await state.sb.from("profiles").select("username").eq("id", user.id).maybeSingle(); state.username = p?.username || null; }
+  else state.username = null;
+  state.owner = user ? user.id : "guest";
+  if (changed){ await loadFinds(); if (user) restoreCloud().then(retryPending).catch(() => {}); }
+  renderRanger(); if ($("#tab-me").classList.contains("on")) renderAccount();
+}
+// Bring this account's finds and photos onto this phone (new phone, or after switching accounts)
+async function restoreCloud(){
+  if (!state.user) return; const uid = state.user.id;
+  const { data, error } = await state.sb.from("finds").select("species_key,name,sci,grp,rarity,points,verdict,ai_note,photo_path,lat,lng,place,country,found_at").eq("user_id", uid);
+  if (error || !data || state.owner !== uid) return;
+  let added = 0;
+  for (const r of data){
+    const local = state.finds.get(r.species_key);
+    if (local){ if (local.verdict !== "pending"){ Object.assign(local, { points:r.points, verdict:r.verdict, note:r.ai_note || "", rarity:r.rarity, photo_path:r.photo_path }); await idb.put(local); } continue; }
+    let photo = null; if (r.photo_path){ try{ const d = await state.sb.storage.from("photos").download(r.photo_path); photo = d.data || null; }catch{} }
+    if (state.owner !== uid) return;
+    const rec = { id:`${uid}:${r.species_key}`, owner:uid, key:r.species_key, name:r.name, sci:r.sci || "", group:r.grp || "other", rarity:r.rarity, points:r.points,
+      verdict:r.verdict, note:r.ai_note || "", photo, photo_path:r.photo_path, lat:r.lat, lng:r.lng, place:r.place || "", country:r.country || "", at:r.found_at };
+    await idb.put(rec); state.finds.set(rec.key, rec); added++;
+  }
+  refreshAll();
+  if (added) toast(`Restored ${added} find${added === 1 ? "" : "s"} from your account`);
+}
+// Photos taken with no signal get checked later
+async function retryPending(){
+  for (const f of [...state.finds.values()]){
+    if (f.verdict !== "pending" || !state.user || f.owner !== state.user.id) continue;
+    const res = await verifyRec(f); if (res.ok) verdictToast(f, res.data); else if (/today's photo checks/.test(res.error)) break;
+  }
+  refreshAll();
+}
+// Move the guest finds on this phone into the signed-in account; each photo gets checked
+async function migrateGuest(){
+  if (!state.user || state.migrating) return;
+  const list = (await allRecs()).filter(f => (f.owner || "guest") === "guest");
+  if (!list.length) return;
+  state.migrating = { done:0, total:list.length, xp:0 }; renderAccount();
+  for (const g of list){
+    const key = keyOf(g.key ?? g.id);
+    if (!state.finds.has(key)){
+      const rec = { ...g, id:`${state.user.id}:${key}`, owner:state.user.id, key, verdict:"pending", points:0, rarity:g.rarity || "common" };
+      await saveRec(rec);
+      const res = await verifyRec(rec);
+      if (res.ok) state.migrating.xp += rec.points;
+    }
+    try{ await idb.del(g.id); }catch{} dropURL(g.id);
+    state.migrating.done++; renderAccount();
+  }
+  const m = state.migrating; state.migrating = null; state.guestCount = 0;
+  refreshAll(); renderAccount();
+  toast(`<span class="xpg">+${m.xp} XP</span><span>Moved ${m.done} guest find${m.done === 1 ? "" : "s"} into your account</span>`, 4500);
+}
+
+function renderAccount(){
+  const box = $("#account");
+  if (!state.sb){
+    box.innerHTML = `<div class="label">Account</div><p class="hint">You're playing as a guest. Your XP, badges and photos are saved on this phone.</p><p class="hint">Usernames, leaderboards and photo checking switch on once the free account server is set up (see SETUP-ACCOUNTS.md).</p>`;
+    $("#meSub").textContent = "Playing as a guest on this phone."; return;
+  }
+  if (state.user){
+    const m = state.migrating;
+    const pendingN = [...state.finds.values()].filter(f => f.verdict === "pending").length;
+    box.innerHTML = `<div class="label">Signed in</div><p style="margin:0;font-family:var(--font-display);font-weight:800;font-size:22px">${esc(state.username || "Ranger")}</p>
+      <p class="hint">Your finds and photos are saved to your account, so they follow you to a new phone. Photos are private. The leaderboard only shows usernames and XP.</p>
+      ${m ? `<div class="label">Moving guest finds: ${m.done} of ${m.total}</div><div class="progress"><span style="width:${Math.round(m.done / m.total * 100)}%"></span></div>`
+        : state.guestCount && !state.skipGuest ? `<div class="verdict">There ${state.guestCount === 1 ? "is 1 guest find" : `are ${state.guestCount} guest finds`} on this phone. Add ${state.guestCount === 1 ? "it" : "them"} to ${esc(state.username || "this account")}? Each photo will be checked by the species AI.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="moveBtn" type="button">Add to my account</button><button class="btn soft" id="skipBtn" type="button">Not now</button></div>` : ""}
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${pendingN ? `<button class="btn soft" id="retryBtn" type="button">Check ${pendingN} waiting photo${pendingN === 1 ? "" : "s"}</button>` : ""}<button class="btn soft" id="outBtn" type="button">Sign out</button></div>`;
+    $("#meSub").textContent = "Your ranger account.";
+    $("#outBtn").onclick = async () => { await state.sb.auth.signOut(); await reloadSession(); renderAccount(); };
+    $("#moveBtn")?.addEventListener("click", () => migrateGuest());
+    $("#skipBtn")?.addEventListener("click", () => { state.skipGuest = true; renderAccount(); });
+    $("#retryBtn")?.addEventListener("click", async () => { $("#retryBtn").disabled = true; await retryPending(); renderAccount(); });
+    return;
+  }
+  $("#meSub").textContent = "Play as a guest, or make a free account to join the leaderboard.";
+  box.innerHTML = `<div class="label">Join the leaderboard</div>
+    <form class="form" id="authForm">
+      <input id="uName" placeholder="Username (3–20 letters, numbers or _)" autocomplete="username" autocapitalize="off" required>
+      <input id="uPass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password" required minlength="8">
+      <div style="display:flex;gap:8px"><button class="btn" type="submit">Create account</button><button class="btn soft" type="button" id="inBtn">Sign in</button></div>
+      <p class="hint">No email needed. Your guest finds move into a new account automatically. Pick a username that isn't your real name, and write your password down because it can't be reset. Kids: ask a grown-up to help.</p>
+      <p class="status" id="authMsg"></p>
+    </form>`;
+  const msg = (t, err) => { const el = $("#authMsg"); el.textContent = t; el.classList.toggle("err", !!err); };
+  const creds = () => ({ u: $("#uName").value.trim(), p: $("#uPass").value });
+  $("#authForm").onsubmit = async e => { e.preventDefault(); const { u, p } = creds();
+    if (!USER_RE.test(u)) return msg("Usernames use 3–20 letters, numbers or underscores.", true);
+    if (p.length < 8) return msg("Passwords need at least 8 characters.", true);
+    msg("Creating your ranger…");
+    const { data:taken } = await state.sb.from("profiles").select("id").ilike("username", u).maybeSingle();
+    if (taken) return msg("That username is taken. Try another.", true);
+    const { data, error } = await state.sb.auth.signUp({ email: emailFor(u), password: p });
+    if (error) return msg(/registered|exists/i.test(error.message) ? "That username is taken. Try another." : "Couldn't create the account: " + error.message, true);
+    if (!data.session) return msg("The server is asking for email confirmation. Turn off 'Confirm email' in Supabase (step 4 of the setup guide).", true);
+    const { error:pe } = await state.sb.from("profiles").insert({ id: data.user.id, username: u });
+    if (pe) return msg("Couldn't save that username. Try a different one.", true);
+    await reloadSession(); renderAccount(); toast(`Welcome, <b>${esc(u)}</b>!`);
+    migrateGuest();
+  };
+  $("#inBtn").onclick = async () => { const { u, p } = creds(); if (!u || !p) return msg("Type your username and password.", true);
+    msg("Signing in…"); const { error } = await state.sb.auth.signInWithPassword({ email: emailFor(u), password: p });
+    if (error) return msg("Username or password doesn't match.", true);
+    state.skipGuest = false; await reloadSession(); renderAccount(); toast(`Welcome back, <b>${esc(state.username || u)}</b>!`); };
+}
+$("#rankSeg").addEventListener("click", e => { const b = e.target.closest("button[data-r]"); if (!b) return; state.rankPeriod = b.dataset.r; $$("#rankSeg button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderRanks(); });
+async function renderRanks(){
+  const board = $("#board");
+  if (!state.sb){ board.innerHTML = `<div class="empty">Leaderboards switch on once the free account server is set up (see SETUP-ACCOUNTS.md). Until then, your XP and badges are saved on this phone.</div>`; return; }
+  board.innerHTML = '<div class="empty">Loading the rankings…</div>';
+  try{
+    const { data, error } = await state.sb.from(state.rankPeriod === "week" ? "leaderboard_week" : "leaderboard_all").select("username,points,species").order("points", { ascending:false }).limit(50);
+    if (error) throw error;
+    const rows = (data || []).filter(r => r.points > 0);
+    board.innerHTML = (rows.length ? rows.map((r, i) => `<div class="row${r.username === state.username ? " me" : ""}"><span class="pos">${i + 1}</span><span class="who"><b>${esc(r.username)}</b><small>${r.species} species</small></span><span class="p">${r.points} XP</span></div>`).join("") : '<div class="empty">No finds yet this period. Be the first on the board!</div>')
+      + (state.user ? "" : `<button class="btn" type="button" id="joinBtn" style="margin-top:8px">Create an account to join</button>`);
+    $("#joinBtn")?.addEventListener("click", () => showTab("me"));
+  }catch{ board.innerHTML = '<div class="empty">Couldn\'t load the leaderboard. Check your signal and try again.</div>'; }
+}
 
 /* ---------- start ---------- */
 (async () => {
-  try{ (await idb.all() || []).forEach(f => state.finds.set(f.id, f)); }catch{}
-  drawFinds();
-  if (state.loc){ saveLoc(state.loc); fitSearch(); search(); } else render();
+  buildRadius();
+  await loadFinds();
+  if (state.sb){ await reloadSession(); state.sb.auth.onAuthStateChange(() => { setTimeout(reloadSession, 0); }); }
+  if (state.loc){ saveLoc(state.loc); fitSearch(); search(); } else renderGrid();
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
 })();
