@@ -187,6 +187,31 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .mygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
 .myf{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:1;background:var(--line);border:0;padding:0}
 .myf img{width:100%;height:100%;object-fit:cover;display:block}
+.vchip{position:absolute;left:6px;top:6px;z-index:1;font-size:10px;font-weight:800;letter-spacing:.04em;border-radius:6px;padding:2px 6px;color:#fff;background:rgba(10,20,14,.72)}
+.vchip.yes{background:var(--r-uncommon)} .vchip.unsure{background:#b07d12} .vchip.no{background:var(--danger)}
+.verdict{border-radius:12px;padding:10px 12px;font-size:14px;font-weight:700;background:var(--paper);border:1px solid var(--line)}
+.verdict.yes{border-color:var(--r-uncommon)} .verdict.unsure{border-color:#b07d12} .verdict.no{border-color:var(--danger)}
+.progress{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.progress span{display:block;height:100%;background:var(--moss);width:0}
+.sightbadge{position:absolute;right:8px;bottom:8px;z-index:1;width:42px;height:42px;border-radius:50%;background:#ffd23f;color:#173327;display:grid;place-items:center;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.sightbadge svg{width:22px;height:22px}
+.vchip.sighted{background:#2f78c4} .vchip.unconfirmed{background:var(--danger)}
+.verdict.sighted{border-color:#2f78c4} .verdict.unconfirmed{border-color:var(--danger)}
+.toolrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.toolrow .btn{white-space:normal;line-height:1.2}
+.sightpanel{display:flex;flex-direction:column;gap:8px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px}
+.sightpanel textarea,.idpanel textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px;font:inherit;resize:vertical;min-height:64px}
+.idpanel{display:flex;flex-direction:column;gap:10px}
+.idprev{display:flex;gap:10px;align-items:center}
+.idprev img{width:72px;height:72px;border-radius:10px;object-fit:cover;background:var(--line)}
+.cand{display:grid;grid-template-columns:72px minmax(0,1fr);gap:10px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:8px}
+.cand img,.cand .ph0{width:72px;height:72px;border-radius:10px;object-fit:cover;background:var(--line)}
+.cand .ci{min-width:0;display:flex;flex-direction:column;gap:3px}
+.cand b{font-family:var(--font-display);font-size:16px;overflow-wrap:anywhere}
+.cand i{font-family:var(--font-latin);color:var(--muted);overflow-wrap:anywhere}
+.cand .btn{justify-self:start;padding:7px 12px;font-size:13px;margin-top:4px}
+.conf{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:2px 8px;color:#fff;background:var(--r-common)}
+.conf.high{background:var(--r-uncommon)} .conf.medium{background:#b07d12}
 .myf span{position:absolute;inset:auto 0 0 0;padding:16px 6px 5px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.7));color:#fff;font-size:12px;font-weight:800;text-align:left;line-height:1.15}
 
 .board{display:flex;flex-direction:column;gap:6px}
@@ -282,7 +307,10 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
         <button type="button" data-v="found" aria-pressed="false">Got</button>
       </div>
     </div>
-    <button class="btn soft" id="addBtn" type="button" aria-expanded="false">+ Add a species you know is here</button>
+    <div class="toolrow">
+      <button class="btn soft" id="idBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>Identify something</button>
+      <button class="btn soft" id="addBtn" type="button" aria-expanded="false">+ Add a species you know is here</button>
+    </div>
     <div class="panel addpanel hidden" id="addPanel">
       <input id="addInput" type="search" placeholder="Type a name, e.g. eastern copperhead" autocomplete="off" enterkeyhint="search" aria-label="Species name">
       <div class="hits" id="hits"></div>
@@ -307,7 +335,7 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
     </div>
     <h2>Badges</h2>
     <div class="badges" id="badges"></div>
-    <h2>Your photos</h2>
+    <h2>Your finds</h2>
     <div class="mygrid" id="mygrid"></div>
   </div>
 </section>
@@ -358,6 +386,7 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
+<input type="file" id="idfile" accept="image/*" hidden>
 
 <script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -433,7 +462,8 @@ const state = {
   units: ls.get("fh-units", "km"),
   species: [], showN: 40, view: "all",
   finds: new Map(), pending: null,
-  sb: null, user: null, username: null, rankPeriod: "week"
+  sb: null, user: null, username: null, rankPeriod: "week",
+  owner: "guest", guestCount: 0, skipGuest: false, migrating: null
 };
 const keyOf = x => String(x);
 
@@ -468,7 +498,13 @@ const idb = (() => {
   return { all: () => tx("readonly", s => s.getAll()), put: v => tx("readwrite", s => s.put(v)), del: id => tx("readwrite", s => s.delete(id)) };
 })();
 const urls = new Map();
-const findURL = f => { if (!f?.photo) return ""; const k = keyOf(f.key ?? f.id); if (!urls.has(k)) urls.set(k, URL.createObjectURL(f.photo)); return urls.get(k); };
+const findURL = f => { if (!f?.photo) return ""; const k = String(f.id); if (!urls.has(k)) urls.set(k, URL.createObjectURL(f.photo)); return urls.get(k); };
+const dropURL = id => { const k = String(id); if (urls.has(k)){ URL.revokeObjectURL(urls.get(k)); urls.delete(k); } };
+const isGot = f => !!f && f.verdict !== "no" && f.verdict !== "unconfirmed";
+const thumbURL = f => findURL(f) || f?.refPhoto || "";
+const isSighting = f => !!f && f.kind === "sighting" && !f.photo;
+const VERDICT = { yes:"Verified", unsure:"Half points", no:"No match", pending:"Checking…", sighted:"Sighted", unconfirmed:"Unconfirmed" };
+const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
 
 /* ---------- toasts & status ---------- */
 function toast(html, ms = 2600){ const t = document.createElement("div"); t.className = "toast"; t.innerHTML = html; $("#toasts").appendChild(t); setTimeout(() => t.remove(), ms); }
@@ -496,7 +532,7 @@ const obsLayer = L.layerGroup().addTo(map), findsLayer = L.layerGroup().addTo(ma
 const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#2f6b4c";
 const GVAR = { reptiles:"--reptile", amphibians:"--amphibian", fish:"--fish", mammals:"--mammal", birds:"--bird", plants:"--plant", trees:"--tree", other:"--other" };
 const groupColor = g => cssVar(GVAR[g] || "--other");
-$("#legend").innerHTML = ORDER.map(k => `<span class="g-${k}"><i></i>${GROUPS[k].label}</span>`).join("") + '<span><i style="background:#ffd23f"></i>Your finds</span>';
+$("#legend").innerHTML = ORDER.map(k => `<span class="g-${k}"><i></i>${GROUPS[k].label}</span>`).join("") + '<span><i style="background:#ffd23f"></i>Your photos</span><span><i style="background:transparent;border:3px solid #ffd23f"></i>Your sightings</span>';
 
 function drawHere(){
   hereLayer.clearLayers(); if (!state.loc) return;
@@ -513,9 +549,11 @@ function addPin(p, g, big){
 function drawFinds(){
   findsLayer.clearLayers();
   for (const f of state.finds.values()){
-    if (f.lat == null) continue;
-    L.circleMarker([f.lat, f.lng], { radius:9, color:"#fff", weight:3, fillColor:"#ffd23f", fillOpacity:1 })
-      .bindPopup(`<div class="pop"><img src="${esc(findURL(f))}" alt=""><div><b>${esc(f.name)}</b><small>You found this ${esc(new Date(f.at).toLocaleDateString())}</small></div></div>`)
+    if (f.lat == null || !isGot(f)) continue;
+    const sight = isSighting(f);
+    const img = thumbURL(f);
+    L.circleMarker([f.lat, f.lng], sight ? { radius:10, color:"#ffd23f", weight:4, fillColor:"#ffd23f", fillOpacity:.15 } : { radius:9, color:"#fff", weight:3, fillColor:"#ffd23f", fillOpacity:1 })
+      .bindPopup(`<div class="pop">${img ? `<img src="${esc(img)}" alt="">` : ""}<div><b>${esc(f.name)}</b><small>${sight ? "You sighted this" : "You photographed this"} ${esc(new Date(f.at).toLocaleDateString())}</small></div></div>`)
       .addTo(findsLayer);
   }
 }
@@ -673,17 +711,21 @@ $("#addInput").addEventListener("input", e => {
       $("#hits").innerHTML = lastHits.length ? lastHits.map((t, i) => `<button class="hit" type="button" data-hit="${i}">${t.default_photo?.square_url ? `<img src="${esc(t.default_photo.square_url)}" alt="">` : '<span class="ph0"></span>'}<span><b>${esc(t.preferred_common_name ? cap(t.preferred_common_name) : t.name)}</b><i>${esc(t.name)}</i></span></button>`).join("") : '<p class="hint">No species match. Try the scientific name.</p>';
     }catch{ if (s === addSeq) $("#hits").innerHTML = '<p class="hint">Couldn\'t search right now. Check your signal.</p>'; } }, 350);
 });
+// Put an iNaturalist taxon on this area's cards (returns its key)
+function addCustom(t, groupHint, quiet){
+  const name = t.preferred_common_name ? cap(t.preferred_common_name) : t.name; const key = keyOf(t.id);
+  const existing = state.species.find(s => s.key === key || s.sci.toLowerCase() === String(t.name).toLowerCase());
+  if (existing){ if (!quiet) toast(`${esc(existing.name)} is already on your cards`); return existing.key; }
+  const rec = { key, id:t.id, inatId:t.id, name, sci:t.name, group: ICONIC[t.iconic_taxon_name] || groupHint || "other", photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", lat:state.loc.lat, lng:state.loc.lng, at:new Date().toISOString() };
+  ls.set("fh-custom", [...ls.get("fh-custom", []).filter(c => keyOf(c.key ?? c.id) !== key), rec]);
+  state.species = [{ ...rec, count:0, custom:true, sources:["Added by you"] }, ...state.species];
+  if (!quiet) toast(`Added <b>${esc(name)}</b> to this area`);
+  return key;
+}
 $("#hits").addEventListener("click", e => {
   const b = e.target.closest("button[data-hit]"); if (!b) return;
   if (!state.loc) return setStatus("Set a location first, so the species is saved for this place.", true);
-  const t = lastHits[+b.dataset.hit]; const name = t.preferred_common_name ? cap(t.preferred_common_name) : t.name; const key = keyOf(t.id);
-  if (state.species.some(s => s.key === key)) toast(`${esc(name)} is already on your cards`);
-  else {
-    const rec = { key, id:t.id, inatId:t.id, name, sci:t.name, group: ICONIC[t.iconic_taxon_name] || "other", photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", lat:state.loc.lat, lng:state.loc.lng, at:new Date().toISOString() };
-    ls.set("fh-custom", [...ls.get("fh-custom", []).filter(c => keyOf(c.key ?? c.id) !== key), rec]);
-    state.species = [{ ...rec, count:0, custom:true, sources:["Added by you"] }, ...state.species];
-    toast(`Added <b>${esc(name)}</b> to this area`);
-  }
+  addCustom(lastHits[+b.dataset.hit]);
   $("#addInput").value = ""; $("#hits").innerHTML = ""; $("#addPanel").classList.add("hidden"); $("#addBtn").setAttribute("aria-expanded","false");
   state.view = "all"; $$("#listSeg button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === "all"))); renderGrid();
 });
@@ -692,19 +734,19 @@ function removeCustom(key){ ls.set("fh-custom", ls.get("fh-custom", []).filter(c
 /* ---------- field cards ---------- */
 $("#listSeg").addEventListener("click", e => { const b = e.target.closest("button[data-v]"); if (!b) return; state.view = b.dataset.v; $$("#listSeg button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderGrid(); });
 function renderGrid(){
-  const sp = state.species, got = sp.filter(s => state.finds.has(s.key)).length;
+  const sp = state.species, got = sp.filter(s => isGot(state.finds.get(s.key))).length;
   $("#collected").textContent = `${got} of ${sp.length} collected`;
   const grid = $("#grid");
-  if (!sp.length){ grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${state.loc ? "Pick what to hunt for and tap <b>Start the hunt</b>." : "Tap <b>Near me</b> or type a park, pick what to hunt for, then tap <b>Start the hunt</b>. Every species you photograph earns XP, and rarer finds earn more."}</div>`; return; }
+  if (!sp.length){ grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${state.loc ? "Pick what to hunt for and tap <b>Start the hunt</b>." : "Tap <b>Near me</b> or type a park, pick what to hunt for, then tap <b>Start the hunt</b>. Photograph a species for full XP, or log a quick sighting for half. Rarer finds earn more."}</div>`; return; }
   let rows = sp;
-  if (state.view === "left") rows = sp.filter(s => !state.finds.has(s.key));
-  if (state.view === "found") rows = sp.filter(s => state.finds.has(s.key));
+  if (state.view === "left") rows = sp.filter(s => !isGot(state.finds.get(s.key)));
+  if (state.view === "found") rows = sp.filter(s => isGot(state.finds.get(s.key)));
   if (!rows.length){ grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${state.view === "found" ? "No cards collected here yet. Tap a card and photograph it when you spot it." : "You've collected every card here. Try more groups or a bigger distance."}</div>`; return; }
   grid.innerHTML = rows.slice(0, state.showN).map(s => {
-    const f = state.finds.get(s.key), r = rarityOf(s);
+    const f0 = state.finds.get(s.key), f = isGot(f0) ? f0 : null, r = rarityOf(s);
     return `<button class="tcard r-${r.id} g-${s.group}${f ? " got" : ""}" type="button" data-k="${esc(s.key)}" aria-label="${esc(s.name)}, ${r.label}${f ? ", collected" : ""}">
       <div class="ph">${s.photo ? `<img loading="lazy" src="${esc(s.photo)}" alt="">` : ""}<span class="rib">${r.label}</span><span class="pts">${f ? "Got" : "+" + r.pts}</span>
-        ${f ? `<img class="stamp" src="${esc(findURL(f))}" alt=""><span class="found-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Collected</span>` : ""}</div>
+        ${f ? (isSighting(f) ? `<span class="sightbadge">${EYE}</span><span class="found-tag">${EYE.replace('stroke-width="2.2"','stroke-width="3"')}Sighted</span>` : `<img class="stamp" src="${esc(findURL(f))}" alt=""><span class="found-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Collected</span>`) : ""}</div>
       <div class="body"><span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")}</span><span class="nm">${esc(s.name)}</span><span class="sci">${esc(s.sci)}</span></div></button>`;
   }).join("") + (rows.length > state.showN ? `<button class="btn soft more" id="moreBtn" type="button">Show ${Math.min(40, rows.length - state.showN)} more</button>` : "");
 }
@@ -717,7 +759,7 @@ $("#grid").addEventListener("click", e => {
 let sheetKey = null;
 function openSheet(key){
   const s = state.species.find(x => x.key === key); if (!s) return; sheetKey = key;
-  const f = state.finds.get(key), r = rarityOf(s);
+  const f0 = state.finds.get(key), f = isGot(f0) ? f0 : null, r = rarityOf(s);
   const more = s.inatId ? `https://www.inaturalist.org/taxa/${s.inatId}` : `https://www.gbif.org/species/${s.gbifKey}`;
   $("#sheet").className = `sheet on r-${r.id}`;
   $("#sheet").innerHTML = `<div class="hero">${s.photo ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}">` : ""}<button class="close" id="sheetClose" type="button" aria-label="Close">×</button></div>
@@ -725,9 +767,12 @@ function openSheet(key){
       <div class="tags"><span class="tag rar">${r.label} · +${r.pts} XP</span><span class="tag">${esc(GROUPS[s.group]?.one || "Wildlife")}</span></div>
       <h2 id="sheetTitle">${esc(s.name)}</h2><div class="sci">${esc(s.sci)}</div>
       <p class="hint">${s.custom ? "You added this species to this area." : `${s.count} record${s.count === 1 ? "" : "s"} within ${fmtDist(state.radiusKm)}`} · From ${esc(s.sources.join(" + "))}</p>
-      ${f ? `<div class="mine-photo"><img src="${esc(findURL(f))}" alt="Your photo"><div><b>Collected ${esc(new Date(f.at).toLocaleDateString())}</b><br><span class="hint">+${f.points || 0} XP earned</span></div></div>` : ""}
-      <div class="acts">
-        <button class="btn big sun" id="shootBtn" type="button" style="grid-column:1/-1">${f ? "Retake photo" : "I found it! Take a photo"}</button>
+      ${verdictBox(f0)}
+      ${f ? `<div class="mine-photo"><img src="${esc(thumbURL(f))}" alt="${isSighting(f) ? "" : "Your photo"}"><div><b>${isSighting(f) ? "Sighted" : "Collected"} ${esc(new Date(f.at).toLocaleDateString())}</b><br><span class="hint">+${f.points || 0} XP earned${f.userNote ? ` · “${esc(f.userNote)}”` : ""}</span></div></div>` : ""}
+      <div id="sightRow"></div>
+      <div class="acts" id="sheetActs">
+        <button class="btn big sun" id="shootBtn" type="button" style="grid-column:1/-1">${isSighting(f) ? "Add a photo for full points" : f ? "Retake photo" : f0?.verdict === "no" ? "Try another photo" : "I found it! Take a photo"}</button>
+        ${!f ? `<button class="btn soft" id="sightBtn" type="button" style="grid-column:1/-1">${EYE}Saw it, but no photo</button>` : ""}
         <button class="btn soft" id="mapBtn" type="button">Show on map</button>
         <a class="btn soft" href="${esc(more)}" target="_blank" rel="noopener">Learn more ↗</a>
         ${s.custom ? `<button class="btn soft" id="unaddBtn" type="button" style="grid-column:1/-1">Remove from this area</button>` : ""}
@@ -736,6 +781,7 @@ function openSheet(key){
   $("#scrim").classList.add("on");
   $("#sheetClose").onclick = closeSheet;
   $("#shootBtn").onclick = () => { state.pending = key; $("#cam").value = ""; $("#cam").click(); };
+  $("#sightBtn")?.addEventListener("click", () => openSightPanel(key));
   $("#mapBtn").onclick = () => { closeSheet(); showOnMap(key); };
   if (s.custom) $("#unaddBtn").onclick = () => removeCustom(key);
 }
@@ -760,46 +806,242 @@ async function showOnMap(key){
 $("#showAllBtn").addEventListener("click", () => { showTab("hunt"); search(); });
 
 /* ---------- camera & scoring ---------- */
-async function shrink(file){ try{ const bmp = await createImageBitmap(file); const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+async function shrink(file){ try{ const bmp = await createImageBitmap(file); const k = Math.min(1, 1400 / Math.max(bmp.width, bmp.height));
   const c = document.createElement("canvas"); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k); c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
   return await new Promise(r => c.toBlob(b => r(b || file), "image/jpeg", .85)); }catch{ return file; } }
-const herePos = () => new Promise(res => { if (!navigator.geolocation) return res(null);
-  navigator.geolocation.getCurrentPosition(p => res({ lat:p.coords.latitude, lng:p.coords.longitude }), () => res(null), { enableHighAccuracy:true, timeout:8000, maximumAge:30000 }); });
+const herePos = (fresh) => new Promise(res => { if (!navigator.geolocation) return res(null);
+  navigator.geolocation.getCurrentPosition(p => res({ lat:p.coords.latitude, lng:p.coords.longitude, acc:p.coords.accuracy }), () => res(null), { enableHighAccuracy:true, timeout: fresh ? 15000 : 8000, maximumAge: fresh ? 0 : 30000 }); });
 const dayKey = d => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`; };
+const recId = key => state.owner === "guest" ? key : `${state.owner}:${key}`;
 
-$("#cam").addEventListener("change", async () => {
-  const file = $("#cam").files?.[0]; const key = state.pending; state.pending = null;
+function verdictBox(f){
+  if (!f || !f.verdict) return f ? `<div class="verdict">Guest find, not checked yet. Make an account and it gets checked by the species AI.</div>` : "";
+  if (f.verdict === "pending") return `<div class="verdict">Your ${isSighting(f) ? "sighting" : "photo"} is waiting to be checked. It will be checked next time you have signal.</div>`;
+  if (f.verdict === "sighted") return `<div class="verdict sighted">Sighting confirmed by location${f.note ? `: ${esc(f.note)}` : ""}. Add a photo for full points.</div>`;
+  if (f.verdict === "unconfirmed") return `<div class="verdict unconfirmed">Sighting not confirmed${f.note ? `: ${esc(f.note)}` : ""}. A photo can still count it.</div>`;
+  if (f.verdict === "yes") return `<div class="verdict yes">Verified by the species AI${f.note ? `: ${esc(f.note)}` : ""}</div>`;
+  if (f.verdict === "unsure") return `<div class="verdict unsure">Half points. The AI wasn't sure${f.note ? `. It saw: ${esc(f.note)}` : ""}. Retake a clearer photo to try for full points.</div>`;
+  return `<div class="verdict no">No points for this photo${f.note ? `. The AI saw: ${esc(f.note)}` : ""}. Try another photo of the real thing.</div>`;
+}
+async function saveRec(rec){ await idb.put(rec); dropURL(rec.id); state.finds.set(rec.key, rec); }
+function refreshAll(){ drawFinds(); renderGrid(); renderRanger(); if ($("#tab-journal").classList.contains("on")) renderJournal(); if (sheetKey && state.finds.has(sheetKey)) openSheet(sheetKey); }
+
+function guestScore(s, pos, half){
+  const r = rarityOf(s), base = half ? Math.round(r.pts / 2) : r.pts, parts = [`${r.label}${half ? " sighting" : ""} +${base}`]; let points = base;
+  const all = [...state.finds.values()].filter(isGot);
+  if (!all.some(f => dayKey(f.at) === dayKey(Date.now()))){ points += 10; parts.push("First find today +10"); }
+  const p = pos || state.loc;
+  if (p && all.length && !all.some(f => f.lat != null && kmBetween(f, p) < 10)){ points += 20; parts.push("New area +20"); }
+  return { points, parts };
+}
+
+// Have the server check a find (photo or sighting) and award points
+async function verifyRec(rec){
+  if (!state.sb || !state.user) return { ok:false, error:"Sign in to get finds checked." };
+  const common = { species_key:rec.key, name:rec.name, sci:rec.sci, group:rec.group, lat:rec.lat, lng:rec.lng,
+    place:rec.place, country:rec.country, radius_km:state.radiusKm, tz:new Date().getTimezoneOffset(), found_at:rec.at, ref_photo:rec.refPhoto || "" };
+  const sighting = isSighting(rec);
+  let path = null;
+  try{
+    if (!sighting){
+      path = `${state.user.id}/${rec.key}-${Date.now()}.jpg`;
+      const up = await state.sb.storage.from("photos").upload(path, rec.photo, { contentType:"image/jpeg", upsert:false });
+      if (up.error) return { ok:false, error:"Couldn't upload the photo. It will be checked later." };
+    }
+    const { data, error } = await state.sb.functions.invoke("verify-find", { body: sighting
+      ? { ...common, mode:"sighting", acc:rec.acc ?? null, user_note:rec.userNote || "" }
+      : { ...common, mode:"photo", photo_path:path } });
+    if (error){
+      let msg = "Couldn't check it right now. It will be checked later.";
+      try{ const j = await error.context?.json?.(); if (j?.error) msg = j.error; }catch{}
+      if (path) state.sb.storage.from("photos").remove([path]).catch(() => {});
+      return { ok:false, error:msg };
+    }
+    if (data.kept){
+      Object.assign(rec, { verdict:data.kept, kind:"sighting", photo:null, photo_path:null, points:data.points, rarity:data.rarity });
+    } else {
+      Object.assign(rec, { verdict:data.verdict, note:data.note || "", points:data.points, rarity:data.rarity });
+      if (!sighting) Object.assign(rec, { photo_path:data.photo_path, kind:"photo" });
+    }
+    await saveRec(rec);
+    return { ok:true, data };
+  }catch{ if (path) state.sb.storage.from("photos").remove([path]).catch(() => {}); return { ok:false, error:"Couldn't check it right now. It will be checked later." }; }
+}
+const aN = w => (/^[aeiou]/i.test(w) ? "an " : "a ") + w;
+function verdictToast(rec, data){
+  const n = esc(rec.name);
+  if (data.rescored === false) return toast(isSighting(rec) ? "Already on your list" : "Photo updated");
+  if (data.kept) return toast(`<span class="xpg">0 XP</span><span>${data.note ? esc(data.note) + ". " : ""}That photo didn't match, but your sighting still counts.</span>`, 5500);
+  if (data.verdict === "sighted") return toast(`<span class="xpg">+${data.points} XP</span><span>${n} sighting confirmed!<br><small style="font-weight:700;opacity:.8">${esc((data.parts || []).join(" · "))}</small></span>`, 4500);
+  if (data.verdict === "unconfirmed") return toast(`<span class="xpg">0 XP</span><span>${esc(data.note || "No records nearby")}. Add a photo to count it.</span>`, 5500);
+  const parts = (data.parts || []).length ? `<br><small style="font-weight:700;opacity:.8">${esc(data.parts.join(" · "))}</small>` : "";
+  if (data.verdict === "yes") toast(`<span class="xpg">+${data.points} XP</span><span>${n} verified!${parts}</span>`, 4200);
+  else if (data.verdict === "unsure") toast(`<span class="xpg">+${data.points} XP</span><span>Half points: the AI wasn't sure it's ${aN(n)}.${parts}</span>`, 5000);
+  else toast(`<span class="xpg">0 XP</span><span>${data.note ? esc(data.note) : `That doesn't look like ${aN(n)}`}. Try another photo.</span>`, 5500);
+}
+
+$("#cam").addEventListener("change", () => { const file = $("#cam").files?.[0]; const key = state.pending; state.pending = null; if (file && key) collectPhoto(key, file); });
+
+async function collectPhoto(key, file){
   const s = state.species.find(x => x.key === key); if (!file || !s) return;
   const before = snapshot();
   const [photo, pos] = await Promise.all([shrink(file), herePos()]);
   const old = state.finds.get(key);
-  let points = old?.points || 0; const parts = [];
-  if (!old){
-    const r = rarityOf(s); points = r.pts; parts.push(`${r.label} +${r.pts}`);
-    const all = [...state.finds.values()];
-    if (!all.some(f => dayKey(f.at) === dayKey(Date.now()))){ points += 10; parts.push("First find today +10"); }
-    const p = pos || state.loc;
-    if (p && all.length && !all.some(f => f.lat != null && kmBetween(f, p) < 10)){ points += 20; parts.push("New area +20"); }
-  }
-  const rec = { id: old?.id ?? key, key, name:s.name, sci:s.sci, group:s.group, rarity: old?.rarity || rarityOf(s).id, points, photo,
+  const base = { id: old?.id ?? recId(key), owner: state.owner, key, name:s.name, sci:s.sci, group:s.group, photo, kind:"photo", refPhoto:s.photo || old?.refPhoto || "",
     at: old?.at || new Date().toISOString(),
-    lat: pos?.lat ?? old?.lat ?? state.loc?.lat ?? null, lng: pos?.lng ?? old?.lng ?? state.loc?.lng ?? null,
-    place: state.loc?.label || "", country: state.loc?.country || "" };
+    lat: pos?.lat ?? old?.lat ?? state.loc?.lat ?? null, lng: pos?.lng ?? old?.lng ?? state.loc?.lng ?? null, acc: pos?.acc ?? null,
+    place: state.loc?.label || old?.place || "", country: state.loc?.country || old?.country || "", userNote: old?.userNote || "" };
   try{
-    await idb.put(rec);
-    if (urls.has(key)){ URL.revokeObjectURL(urls.get(key)); urls.delete(key); }
-    state.finds.set(key, rec); drawFinds(); renderGrid(); renderRanger();
-    if (sheetKey === key) openSheet(key);
-    if (!old){
-      toast(`<span class="xpg">+${points} XP</span><span>${esc(s.name)} collected!<br><small style="font-weight:700;opacity:.8">${esc(parts.join(" · "))}</small></span>`, 3600);
-      celebrate(before); syncFind(rec);
-    } else toast("Photo updated");
+    if (state.user){
+      const keepSight = old?.verdict === "sighted";
+      const rec = { ...base, rarity: old?.rarity || rarityOf(s).id, points: old?.points || 0, verdict: old?.verdict === "yes" ? "yes" : "pending", note: old?.note || "", photo_path: old?.photo_path };
+      await saveRec(rec); refreshAll();
+      toast("Checking your photo…", 1800);
+      const res = await verifyRec(rec);
+      if (!res.ok && keepSight){ Object.assign(rec, { verdict:"pending" }); }
+      refreshAll();
+      if (!res.ok) return toast(esc(res.error), 4500);
+      verdictToast(rec, res.data); if (res.data.points > (old?.points || 0)) celebrate(before);
+    } else {
+      if (isGot(old) && !isSighting(old)){ await saveRec({ ...old, photo }); refreshAll(); return toast("Photo updated"); }
+      if (isGot(old) && isSighting(old)){
+        const r = rarityOf(s), extra = r.pts - Math.round(r.pts / 2);
+        await saveRec({ ...old, ...base, points:(old.points || 0) + extra, verdict:null }); refreshAll();
+        toast(`<span class="xpg">+${extra} XP</span><span>${esc(s.name)} upgraded from sighting to photo!</span>`, 4200); celebrate(before); return;
+      }
+      const { points, parts } = guestScore(s, pos);
+      await saveRec({ ...base, rarity: rarityOf(s).id, points, verdict: null }); refreshAll();
+      toast(`<span class="xpg">+${points} XP</span><span>${esc(s.name)} collected!<br><small style="font-weight:700;opacity:.8">${esc(parts.join(" · "))}${state.sb ? " · Make an account to get it verified" : ""}</small></span>`, 4200);
+      celebrate(before);
+    }
   }catch{ toast("Couldn't save the photo. Your phone may be low on storage.", 3500); }
+}
+
+/* ---------- sightings (no photo) ---------- */
+function openSightPanel(key){
+  const s = state.species.find(x => x.key === key); if (!s) return;
+  $("#sheetActs").classList.add("hidden");
+  $("#sightRow").innerHTML = `<div class="sightpanel">
+      <b>Log a sighting of ${esc(s.name)}</b>
+      <p class="hint">Too quick for a photo? Log it here. Field Hunt uses your phone's GPS to check that ${esc(s.name)} has been recorded within 10 km of where you're standing. Confirmed sightings earn half points; add a photo later for the rest.</p>
+      <label class="label" for="sightNote">What did you see? (optional)</label>
+      <textarea id="sightNote" maxlength="200" placeholder="e.g. crossed the trail fast, about 1 m long"></textarea>
+      <div class="acts"><button class="btn sun" id="sightGo" type="button">Log sighting here</button><button class="btn soft" id="sightCancel" type="button">Cancel</button></div>
+    </div>`;
+  $("#sightCancel").onclick = () => openSheet(key);
+  $("#sightGo").onclick = async () => { $("#sightGo").disabled = true; $("#sightGo").textContent = "Getting your GPS…"; await logSighting(key, $("#sightNote").value.trim()); };
+}
+async function logSighting(key, userNote){
+  const s = state.species.find(x => x.key === key); if (!s) return;
+  const pos = await herePos(true);
+  if (!pos){ toast("Sightings need your GPS location. Turn on Location Services for Safari and try again.", 5000); return openSheet(key); }
+  if (pos.acc > 1000){ toast("Your GPS signal is too weak to confirm the spot. Step into the open and try again.", 5000); return openSheet(key); }
+  const before = snapshot();
+  const old = state.finds.get(key);
+  const rec = { id: old?.id ?? recId(key), owner: state.owner, key, name:s.name, sci:s.sci, group:s.group, photo:null, kind:"sighting", refPhoto:s.photo || "",
+    at: new Date().toISOString(), lat:pos.lat, lng:pos.lng, acc:pos.acc, userNote,
+    place: state.loc?.label || "", country: state.loc?.country || "", rarity: rarityOf(s).id, points:0, verdict:"pending", note:"" };
+  try{
+    if (state.user){
+      await saveRec(rec); refreshAll(); toast("Checking the location…", 1800);
+      const res = await verifyRec(rec); refreshAll();
+      if (!res.ok) return toast(esc(res.error), 4500);
+      verdictToast(rec, res.data); if (res.data.points > 0) celebrate(before);
+    } else {
+      const known = !s.custom && s.count > 0;
+      const near = state.loc && kmBetween(pos, state.loc) <= state.radiusKm + 2;
+      if (known && near){
+        const { points, parts } = guestScore(s, pos, true);
+        Object.assign(rec, { verdict:"sighted", points, note:`${s.count} record${s.count === 1 ? "" : "s"} near here` });
+        await saveRec(rec); refreshAll();
+        toast(`<span class="xpg">+${points} XP</span><span>${esc(s.name)} sighting confirmed!<br><small style="font-weight:700;opacity:.8">${esc(parts.join(" · "))}</small></span>`, 4500); celebrate(before);
+      } else {
+        Object.assign(rec, { verdict:"unconfirmed", points:0, note: !near ? "You're outside the area you searched. Search near where you are, then log it again" : "No records of this species near here yet" });
+        await saveRec(rec); refreshAll();
+        toast(`<span class="xpg">0 XP</span><span>${esc(rec.note)}. A photo can still count it.</span>`, 5500);
+      }
+    }
+  }catch{ toast("Couldn't save the sighting. Try again.", 3500); }
+}
+
+/* ---------- identify ---------- */
+const GROUP_FROM_AI = { reptile:"reptiles", amphibian:"amphibians", fish:"fish", mammal:"mammals", bird:"birds", plant:"plants", tree:"trees" };
+const idState = { file:null, blob:null, url:"", results:[] };
+const blobToB64 = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(b); });
+function openIdentify(){
+  sheetKey = null;
+  $("#sheet").className = "sheet on";
+  const head = `<div class="inner"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 id="sheetTitle">Identify it</h2><button class="btn soft" id="sheetClose" type="button" aria-label="Close">Close</button></div>`;
+  let body;
+  if (!state.sb) body = `<p class="hint">Identify uses the species AI, which switches on once the account server is set up (see SETUP-ACCOUNTS.md). Until then, try <b>+ Add a species</b> and search by name.</p>`;
+  else if (!state.user) body = `<p class="hint">Identify uses the species AI, so you need a free account. It only takes a username and password.</p><button class="btn" id="idSignIn" type="button">Create an account or sign in</button>`;
+  else body = `<div class="idpanel">
+      <p class="hint">Snap or choose a photo, or describe what you saw. The species AI suggests what it might be, using where you are and the time of year.</p>
+      <div class="idprev">${idState.url ? `<img src="${esc(idState.url)}" alt="Your photo">` : ""}<button class="btn soft" id="idPick" type="button">${idState.url ? "Change photo" : "Take or choose a photo"}</button></div>
+      <label class="label" for="idDesc">Or describe it</label>
+      <textarea id="idDesc" maxlength="500" placeholder="Colour, size, shape, markings, what it was doing, where it was (log, pond, tree…)"></textarea>
+      <button class="btn big sun" id="idGo" type="button">Identify</button>
+      <div id="idOut" class="stack" aria-live="polite"></div>
+    </div>`;
+  $("#sheet").innerHTML = head + body + "</div>";
+  $("#scrim").classList.add("on");
+  $("#sheetClose").onclick = closeSheet;
+  $("#idSignIn")?.addEventListener("click", () => { closeSheet(); showTab("me"); });
+  $("#idPick")?.addEventListener("click", () => { $("#idfile").value = ""; $("#idfile").click(); });
+  $("#idGo")?.addEventListener("click", runIdentify);
+}
+$("#idBtn").addEventListener("click", openIdentify);
+$("#idfile").addEventListener("change", async () => {
+  const f = $("#idfile").files?.[0]; if (!f) return;
+  idState.file = f; idState.blob = await shrink(f);
+  if (idState.url) URL.revokeObjectURL(idState.url); idState.url = URL.createObjectURL(idState.blob);
+  const desc = $("#idDesc")?.value || ""; openIdentify(); if ($("#idDesc")) $("#idDesc").value = desc;
 });
+async function runIdentify(){
+  const desc = ($("#idDesc")?.value || "").trim();
+  if (!idState.blob && desc.length < 3) return toast("Add a photo or describe what you saw.");
+  if (!state.loc) return toast("Set where you're hunting first (Near me or type a place).", 4000);
+  const out = $("#idOut"), go = $("#idGo"); go.disabled = true; go.textContent = "Identifying…"; out.innerHTML = "";
+  try{
+    const pos = await herePos();
+    const p = pos || state.loc;
+    const { data, error } = await state.sb.functions.invoke("verify-find", { body:{ mode:"identify", image: idState.blob ? await blobToB64(idState.blob) : "", media_type:"image/jpeg", description:desc, lat:p.lat, lng:p.lng, place:state.loc.label } });
+    if (error){ let msg = "Couldn't identify it right now. Try again in a moment."; try{ const j = await error.context?.json?.(); if (j?.error) msg = j.error; }catch{} throw new Error(msg); }
+    const cands = data.candidates || [];
+    if (!cands.length){ out.innerHTML = `<div class="verdict">The AI couldn't tell what this is.${data.tip ? ` Tip: ${esc(data.tip)}` : ""}</div>`; return; }
+    // Look each one up for a reference photo and how often it's been recorded nearby
+    idState.results = await pool(cands, 3, async c => {
+      let t = null, near = null;
+      try{ const r = await getJSON(`${INAT}/taxa/autocomplete?q=${encodeURIComponent(c.sci)}&per_page=5&locale=en`);
+        t = (r.results || []).find(x => x.name.toLowerCase() === c.sci.toLowerCase()) || (r.results || []).find(x => x.rank_level <= 10) || null; }catch{}
+      if (t){ try{ const r = await getJSON(`${INAT}/observations?taxon_id=${t.id}&lat=${p.lat}&lng=${p.lng}&radius=${Math.max(10, state.radiusKm)}&quality_grade=research&per_page=0`); near = r.total_results ?? null; }catch{} }
+      return { ...c, t, near };
+    });
+    out.innerHTML = `<div class="label">Best matches</div>` + idState.results.map((c, i) => `<div class="cand">
+        ${c.t?.default_photo?.square_url ? `<img src="${esc(c.t.default_photo.medium_url || c.t.default_photo.square_url)}" alt="">` : '<span class="ph0"></span>'}
+        <div class="ci"><b>${esc(c.t?.preferred_common_name ? cap(c.t.preferred_common_name) : c.name)}</b><i>${esc(c.t?.name || c.sci)}</i>
+          <span><span class="conf ${esc(c.confidence)}">${esc(cap(c.confidence))} match</span> <span class="hint">${c.near == null ? "" : c.near ? `${c.near} records within ${fmtDist(Math.max(10, state.radiusKm))}` : "No records nearby yet: an unusual find!"}</span></span>
+          <span class="hint">${esc(c.why)}</span>
+          ${c.t ? `<button class="btn" type="button" data-pick="${i}">This is it</button>` : `<span class="hint">Couldn't find this name in iNaturalist.</span>`}</div></div>`).join("")
+      + (data.tip ? `<p class="hint">Tip: ${esc(data.tip)}</p>` : "");
+    out.querySelectorAll("button[data-pick]").forEach(b => b.onclick = () => pickIdentified(+b.dataset.pick));
+  }catch(e){ out.innerHTML = `<div class="verdict no">${esc(e.message || "Couldn't identify it right now.")}</div>`; }
+  finally{ go.disabled = false; go.textContent = "Identify again"; }
+}
+async function pickIdentified(i){
+  const c = idState.results[i]; if (!c?.t) return;
+  const key = addCustom(c.t, GROUP_FROM_AI[c.group] || "other", true);
+  renderGrid();
+  const blob = idState.blob;
+  idState.blob = null; idState.file = null; if (idState.url){ URL.revokeObjectURL(idState.url); idState.url = ""; }
+  const got = isGot(state.finds.get(key));
+  if (blob && !got){ closeSheet(); toast(`Added ${esc(c.t.preferred_common_name ? cap(c.t.preferred_common_name) : c.t.name)}. Collecting it with your photo…`, 2500); await collectPhoto(key, blob); }
+  else { openSheet(key); toast(got ? "You've already collected this one" : "Added to your cards. Log it as a sighting or take a photo.", 3500); }
+}
 
 /* ---------- levels, streaks, badges ---------- */
 function totals(){
-  const all = [...state.finds.values()]; const xp = all.reduce((a, f) => a + (f.points || 0), 0);
+  const all = [...state.finds.values()].filter(isGot); const xp = all.reduce((a, f) => a + (f.points || 0), 0);
   const by = g => all.filter(f => f.group === g).length;
   const days = [...new Set(all.map(f => dayKey(f.at)))].sort();
   let best = 0, run = 0, prev = null;
@@ -849,21 +1091,28 @@ function renderJournal(){
   const t = totals();
   $("#sSpecies").textContent = t.n; $("#sXP").textContent = t.xp; $("#sStreak").textContent = t.best; $("#sPlaces").textContent = t.places;
   $("#badges").innerHTML = BADGES.map(b => { const on = b.t(t); return `<div class="badge${on ? "" : " locked"}" style="--bc:var(${b.c})"><div class="medal">${ic(b.icon)}</div><b>${esc(b.name)}</b><small>${esc(b.desc)}</small></div>`; }).join("");
-  const all = t.all.sort((a, b) => String(b.at).localeCompare(String(a.at)));
-  $("#mygrid").innerHTML = all.length ? all.map(f => `<button class="myf" data-k="${esc(keyOf(f.key ?? f.id))}" type="button"><img src="${esc(findURL(f))}" alt=""><span>${esc(f.name)}</span></button>`).join("") : '<div class="empty" style="grid-column:1/-1">Your photos appear here as you collect species.</div>';
+  const all = [...state.finds.values()].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  $("#mygrid").innerHTML = all.length ? all.map(f => `<button class="myf" data-k="${esc(f.key)}" type="button"><img src="${esc(thumbURL(f))}" alt="">${f.verdict ? `<em class="vchip ${esc(f.verdict)}">${VERDICT[f.verdict] || ""}</em>` : ""}<span>${esc(f.name)}</span></button>`).join("") : '<div class="empty" style="grid-column:1/-1">Your photos and sightings appear here as you collect species.</div>';
 }
 $("#mygrid").addEventListener("click", e => {
   const b = e.target.closest(".myf"); if (!b) return; const f = state.finds.get(b.dataset.k); if (!f) return;
   $("#sheet").className = "sheet on";
-  $("#sheet").innerHTML = `<div class="hero"><img src="${esc(findURL(f))}" alt="Your photo of ${esc(f.name)}"><button class="close" id="sheetClose" type="button" aria-label="Close">×</button></div>
+  $("#sheet").innerHTML = `<div class="hero"><img src="${esc(thumbURL(f))}" alt="${isSighting(f) ? esc(f.name) : "Your photo of " + esc(f.name)}"><button class="close" id="sheetClose" type="button" aria-label="Close">×</button></div>
     <div class="inner"><h2 id="sheetTitle">${esc(f.name)}</h2><div class="sci">${esc(f.sci)}</div>
-    <p class="hint">Collected ${esc(new Date(f.at).toLocaleDateString())}${f.place ? " at " + esc(f.place) : ""} · +${f.points || 0} XP</p>
-    <div id="delRow"><button class="btn soft" id="delBtn" type="button">Delete this photo</button></div></div>`;
+    <p class="hint">Found ${esc(new Date(f.at).toLocaleDateString())}${f.place ? " at " + esc(f.place) : ""} · +${f.points || 0} XP</p>
+    ${verdictBox(f)}
+    <div id="delRow"><button class="btn soft" id="delBtn" type="button">Delete this find</button></div></div>`;
   $("#scrim").classList.add("on"); $("#sheetClose").onclick = closeSheet;
   $("#delBtn").onclick = () => {
-    $("#delRow").innerHTML = `<p class="hint">This removes the photo and its XP from this phone.</p><div class="acts"><button class="btn" id="delYes" type="button" style="background:var(--danger)">Delete</button><button class="btn soft" id="delNo" type="button">Keep it</button></div>`;
+    $("#delRow").innerHTML = `<p class="hint">This removes the photo and its XP${state.user ? " from your account" : " from this phone"}.</p><div class="acts"><button class="btn" id="delYes" type="button" style="background:var(--danger)">Delete</button><button class="btn soft" id="delNo" type="button">Keep it</button></div>`;
     $("#delNo").onclick = closeSheet;
-    $("#delYes").onclick = async () => { try{ await idb.del(f.id); }catch{} const k = keyOf(f.key ?? f.id); if (urls.has(k)){ URL.revokeObjectURL(urls.get(k)); urls.delete(k); } state.finds.delete(k); drawFinds(); renderGrid(); renderRanger(); renderJournal(); closeSheet(); };
+    $("#delYes").onclick = async () => {
+      if (state.user && f.owner === state.user.id){
+        try{ await state.sb.from("finds").delete().eq("user_id", state.user.id).eq("species_key", f.key); if (f.photo_path) await state.sb.storage.from("photos").remove([f.photo_path]); }catch{}
+      }
+      try{ await idb.del(f.id); }catch{}
+      dropURL(f.id); state.finds.delete(f.key); closeSheet(); refreshAll(); renderJournal();
+    };
   };
 });
 
@@ -872,31 +1121,99 @@ const CFG = window.FIELD_HUNT_CONFIG || {};
 if (CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase?.createClient){ try{ state.sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey); }catch{} }
 const emailFor = u => `${u.toLowerCase()}@players.fieldhunt.app`;
 const USER_RE = /^[A-Za-z0-9_]{3,20}$/;
+
+async function allRecs(){ try{ return (await idb.all()) || []; }catch{ return []; } }
+async function loadFinds(){
+  for (const f of state.finds.values()) dropURL(f.id);
+  state.finds = new Map();
+  const recs = await allRecs();
+  for (const f of recs){ const owner = f.owner || "guest"; if (owner !== state.owner) continue;
+    f.owner = owner; f.key = keyOf(f.key ?? f.id); f.points ??= 10; f.rarity ??= "common"; if (f.verdict === undefined) f.verdict = null; state.finds.set(f.key, f); }
+  state.guestCount = recs.filter(f => (f.owner || "guest") === "guest").length;
+  refreshAll();
+}
+let sessionQ = Promise.resolve();
+const reloadSession = () => (sessionQ = sessionQ.then(loadSession).catch(() => {}));
 async function loadSession(){
   if (!state.sb) return;
-  const { data } = await state.sb.auth.getSession(); state.user = data?.session?.user || null;
-  if (state.user){ const { data:p } = await state.sb.from("profiles").select("username").eq("id", state.user.id).maybeSingle(); state.username = p?.username || null; }
+  const { data } = await state.sb.auth.getSession(); const user = data?.session?.user || null;
+  const changed = (user?.id || null) !== (state.user?.id || null);
+  state.user = user;
+  if (user){ const { data:p } = await state.sb.from("profiles").select("username").eq("id", user.id).maybeSingle(); state.username = p?.username || null; }
   else state.username = null;
-  renderRanger();
+  state.owner = user ? user.id : "guest";
+  if (changed){ await loadFinds(); if (user) restoreCloud().then(retryPending).catch(() => {}); }
+  renderRanger(); if ($("#tab-me").classList.contains("on")) renderAccount();
 }
-async function syncFind(f){
-  if (!state.sb || !state.user) return;
-  try{ await state.sb.from("finds").upsert({ user_id:state.user.id, species_key:keyOf(f.key ?? f.id), name:String(f.name).slice(0,80), grp:f.group, rarity:f.rarity, points:Math.min(150, f.points || 0), country:f.country || null, found_at:f.at }, { onConflict:"user_id,species_key", ignoreDuplicates:true }); }catch{}
+// Bring this account's finds and photos onto this phone (new phone, or after switching accounts)
+async function restoreCloud(){
+  if (!state.user) return; const uid = state.user.id;
+  const { data, error } = await state.sb.from("finds").select("species_key,name,sci,grp,rarity,points,verdict,ai_note,photo_path,lat,lng,place,country,found_at,kind,ref_photo,user_note").eq("user_id", uid);
+  if (error || !data || state.owner !== uid) return;
+  let added = 0;
+  for (const r of data){
+    const local = state.finds.get(r.species_key);
+    if (local){ if (local.verdict !== "pending"){ Object.assign(local, { points:r.points, verdict:r.verdict, note:r.ai_note || "", rarity:r.rarity, photo_path:r.photo_path, kind:r.kind || local.kind }); if (r.kind === "sighting") local.photo = null; await idb.put(local); } continue; }
+    let photo = null; if (r.photo_path){ try{ const d = await state.sb.storage.from("photos").download(r.photo_path); photo = d.data || null; }catch{} }
+    if (state.owner !== uid) return;
+    const rec = { id:`${uid}:${r.species_key}`, owner:uid, key:r.species_key, name:r.name, sci:r.sci || "", group:r.grp || "other", rarity:r.rarity, points:r.points,
+      verdict:r.verdict, note:r.ai_note || "", photo, photo_path:r.photo_path, lat:r.lat, lng:r.lng, place:r.place || "", country:r.country || "", at:r.found_at,
+      kind: r.kind || (r.photo_path ? "photo" : "sighting"), refPhoto: r.ref_photo || "", userNote: r.user_note || "" };
+    await idb.put(rec); state.finds.set(rec.key, rec); added++;
+  }
+  refreshAll();
+  if (added) toast(`Restored ${added} find${added === 1 ? "" : "s"} from your account`);
 }
-async function syncAll(){ for (const f of state.finds.values()) await syncFind(f); }
+// Photos taken with no signal get checked later
+async function retryPending(){
+  for (const f of [...state.finds.values()]){
+    if (f.verdict !== "pending" || !state.user || f.owner !== state.user.id) continue;
+    const res = await verifyRec(f); if (res.ok) verdictToast(f, res.data); else if (/today's AI checks/.test(res.error)) break;
+  }
+  refreshAll();
+}
+// Move the guest finds on this phone into the signed-in account; each photo gets checked
+async function migrateGuest(){
+  if (!state.user || state.migrating) return;
+  const list = (await allRecs()).filter(f => (f.owner || "guest") === "guest");
+  if (!list.length) return;
+  state.migrating = { done:0, total:list.length, xp:0 }; renderAccount();
+  for (const g of list){
+    const key = keyOf(g.key ?? g.id);
+    if (!state.finds.has(key)){
+      const rec = { ...g, id:`${state.user.id}:${key}`, owner:state.user.id, key, verdict:"pending", points:0, rarity:g.rarity || "common" };
+      await saveRec(rec);
+      const res = await verifyRec(rec);
+      if (res.ok) state.migrating.xp += rec.points;
+    }
+    try{ await idb.del(g.id); }catch{} dropURL(g.id);
+    state.migrating.done++; renderAccount();
+  }
+  const m = state.migrating; state.migrating = null; state.guestCount = 0;
+  refreshAll(); renderAccount();
+  toast(`<span class="xpg">+${m.xp} XP</span><span>Moved ${m.done} guest find${m.done === 1 ? "" : "s"} into your account</span>`, 4500);
+}
+
 function renderAccount(){
   const box = $("#account");
   if (!state.sb){
-    box.innerHTML = `<div class="label">Account</div><p class="hint">You're playing as a guest. Your XP, badges and photos are saved on this phone.</p><p class="hint">Usernames and leaderboards switch on once the free account server is set up (see SETUP-ACCOUNTS.md).</p>`;
+    box.innerHTML = `<div class="label">Account</div><p class="hint">You're playing as a guest. Your XP, badges and photos are saved on this phone.</p><p class="hint">Usernames, leaderboards and photo checking switch on once the free account server is set up (see SETUP-ACCOUNTS.md).</p>`;
     $("#meSub").textContent = "Playing as a guest on this phone."; return;
   }
   if (state.user){
+    const m = state.migrating;
+    const pendingN = [...state.finds.values()].filter(f => f.verdict === "pending").length;
     box.innerHTML = `<div class="label">Signed in</div><p style="margin:0;font-family:var(--font-display);font-weight:800;font-size:22px">${esc(state.username || "Ranger")}</p>
-      <p class="hint">Your finds count toward the leaderboard. Photos stay private on your phone; only species names and points are shared.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn soft" id="syncBtn" type="button">Sync my finds</button><button class="btn soft" id="outBtn" type="button">Sign out</button></div>`;
+      <p class="hint">Your finds and photos are saved to your account, so they follow you to a new phone. Photos are private. The leaderboard only shows usernames and XP.</p>
+      ${m ? `<div class="label">Moving guest finds: ${m.done} of ${m.total}</div><div class="progress"><span style="width:${Math.round(m.done / m.total * 100)}%"></span></div>`
+        : state.guestCount && !state.skipGuest ? `<div class="verdict">There ${state.guestCount === 1 ? "is 1 guest find" : `are ${state.guestCount} guest finds`} on this phone. Add ${state.guestCount === 1 ? "it" : "them"} to ${esc(state.username || "this account")}? Each photo and sighting will be checked.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="moveBtn" type="button">Add to my account</button><button class="btn soft" id="skipBtn" type="button">Not now</button></div>` : ""}
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${pendingN ? `<button class="btn soft" id="retryBtn" type="button">Check ${pendingN} waiting find${pendingN === 1 ? "" : "s"}</button>` : ""}<button class="btn soft" id="outBtn" type="button">Sign out</button></div>`;
     $("#meSub").textContent = "Your ranger account.";
-    $("#outBtn").onclick = async () => { await state.sb.auth.signOut(); await loadSession(); renderAccount(); };
-    $("#syncBtn").onclick = async () => { $("#syncBtn").disabled = true; await syncAll(); $("#syncBtn").disabled = false; toast("Finds synced"); };
+    $("#outBtn").onclick = async () => { await state.sb.auth.signOut(); await reloadSession(); renderAccount(); };
+    $("#moveBtn")?.addEventListener("click", () => migrateGuest());
+    $("#skipBtn")?.addEventListener("click", () => { state.skipGuest = true; renderAccount(); });
+    $("#retryBtn")?.addEventListener("click", async () => { $("#retryBtn").disabled = true; await retryPending(); renderAccount(); });
     return;
   }
   $("#meSub").textContent = "Play as a guest, or make a free account to join the leaderboard.";
@@ -905,10 +1222,10 @@ function renderAccount(){
       <input id="uName" placeholder="Username (3–20 letters, numbers or _)" autocomplete="username" autocapitalize="off" required>
       <input id="uPass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password" required minlength="8">
       <div style="display:flex;gap:8px"><button class="btn" type="submit">Create account</button><button class="btn soft" type="button" id="inBtn">Sign in</button></div>
-      <p class="hint">No email needed. Pick a username that isn't your real name, and write your password down because it can't be reset. Kids: ask a grown-up to help.</p>
+      <p class="hint">No email needed. Your guest finds move into a new account automatically. Pick a username that isn't your real name, and write your password down because it can't be reset. Kids: ask a grown-up to help.</p>
       <p class="status" id="authMsg"></p>
     </form>`;
-  const msg = (t, err) => { const m = $("#authMsg"); m.textContent = t; m.classList.toggle("err", !!err); };
+  const msg = (t, err) => { const el = $("#authMsg"); el.textContent = t; el.classList.toggle("err", !!err); };
   const creds = () => ({ u: $("#uName").value.trim(), p: $("#uPass").value });
   $("#authForm").onsubmit = async e => { e.preventDefault(); const { u, p } = creds();
     if (!USER_RE.test(u)) return msg("Usernames use 3–20 letters, numbers or underscores.", true);
@@ -918,15 +1235,16 @@ function renderAccount(){
     if (taken) return msg("That username is taken. Try another.", true);
     const { data, error } = await state.sb.auth.signUp({ email: emailFor(u), password: p });
     if (error) return msg(/registered|exists/i.test(error.message) ? "That username is taken. Try another." : "Couldn't create the account: " + error.message, true);
-    if (!data.session) return msg("The server is asking for email confirmation. Turn off 'Confirm email' in Supabase (step 5 of the setup guide).", true);
+    if (!data.session) return msg("The server is asking for email confirmation. Turn off 'Confirm email' in Supabase (step 4 of the setup guide).", true);
     const { error:pe } = await state.sb.from("profiles").insert({ id: data.user.id, username: u });
     if (pe) return msg("Couldn't save that username. Try a different one.", true);
-    await loadSession(); await syncAll(); renderAccount(); toast(`Welcome, <b>${esc(u)}</b>!`);
+    await reloadSession(); renderAccount(); toast(`Welcome, <b>${esc(u)}</b>!`);
+    migrateGuest();
   };
   $("#inBtn").onclick = async () => { const { u, p } = creds(); if (!u || !p) return msg("Type your username and password.", true);
     msg("Signing in…"); const { error } = await state.sb.auth.signInWithPassword({ email: emailFor(u), password: p });
     if (error) return msg("Username or password doesn't match.", true);
-    await loadSession(); await syncAll(); renderAccount(); toast(`Welcome back, <b>${esc(state.username || u)}</b>!`); };
+    state.skipGuest = false; await reloadSession(); renderAccount(); toast(`Welcome back, <b>${esc(state.username || u)}</b>!`); };
 }
 $("#rankSeg").addEventListener("click", e => { const b = e.target.closest("button[data-r]"); if (!b) return; state.rankPeriod = b.dataset.r; $$("#rankSeg button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderRanks(); });
 async function renderRanks(){
@@ -946,9 +1264,8 @@ async function renderRanks(){
 /* ---------- start ---------- */
 (async () => {
   buildRadius();
-  try{ for (const f of (await idb.all()) || []){ const k = keyOf(f.key ?? f.id); f.key = k; f.points ??= 10; f.rarity ??= "common"; state.finds.set(k, f); } }catch{}
-  drawFinds(); renderRanger();
-  if (state.sb){ loadSession().catch(() => {}); state.sb.auth.onAuthStateChange(() => { setTimeout(() => loadSession().catch(() => {}), 0); }); }
+  await loadFinds();
+  if (state.sb){ await reloadSession(); state.sb.auth.onAuthStateChange(() => { setTimeout(reloadSession, 0); }); }
   if (state.loc){ saveLoc(state.loc); fitSearch(); search(); } else renderGrid();
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 })();

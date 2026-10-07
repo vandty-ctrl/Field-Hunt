@@ -1,55 +1,98 @@
-# Turn on usernames and leaderboards
+# Turn on accounts, leaderboards and photo checking
 
-Field Hunt works without this. Points, levels and badges are saved on each phone. Doing this once lets people make a username and compete on shared weekly and all-time leaderboards.
+> **Already set up from an earlier version?** You only need to do two things:
+> 1. Run the new `setup.sql` again (step 3). It adds the columns for sightings and leaves your data alone.
+> 2. Replace the code in your `verify-find` function with the new `verify-find.ts` and click **Deploy** again (step 8).
 
-It uses **Supabase**, a free service that stores the accounts and scores. It takes about 10 minutes and you only do it once.
+Field Hunt works without this, with points and badges saved on each phone. Setting this up once gives you:
+- **Usernames and leaderboards** (weekly and all-time)
+- **Finds and photos saved to each player's account**, so they follow them to a new phone
+- **AI photo checking**: Claude looks at every photo to confirm it shows the species claimed. Unsure photos earn half points, and wrong or faked photos earn none.
+- **Sightings without a photo**, confirmed on the server against species records near the player's GPS position (half points)
+- **Identify**: the species AI suggests what a photo or description shows
 
-## 1. Make a free Supabase account
+You'll use two free sign-ups: **Supabase** (stores accounts, scores and photos) and **Anthropic** (the photo checker, which costs a small amount per photo). Allow about 20 minutes. Menu names can move around a little; if a button isn't exactly where described, look for one with a similar name.
+
+---
+
+## Part A: Supabase (accounts, scores, photos)
+
+### 1. Make a free account
 1. Go to **supabase.com** and click **Start your project**.
-2. Choose **Continue with GitHub** and sign in with your GitHub account.
+2. Choose **Continue with GitHub** and sign in.
 
-## 2. Create a project
-1. Click **New project**.
-2. Name: `field-hunt`.
-3. Database password: click **Generate a password**, then copy it somewhere safe. You won't need it for the app.
-4. Region: pick the one closest to you.
-5. Click **Create new project** and wait about 2 minutes while it sets up.
+### 2. Create a project
+1. Click **New project**, and name it `field-hunt`.
+2. Database password: click **Generate a password**, then copy it somewhere safe. You won't need it for the app.
+3. Pick the region closest to you and click **Create new project**. Wait about 2 minutes.
 
-## 3. Create the leaderboard tables
-1. In the left menu, click **SQL Editor**.
-2. Click **New query**.
-3. Open `setup.sql` from the Field Hunt folder, copy everything in it, and paste it into the big box.
-4. Click **Run** (bottom right). You should see "Success. No rows returned".
+### 3. Create the tables and photo storage
+1. Left menu: **SQL Editor**, then **New query**.
+2. Open `setup.sql` from the Field Hunt folder, copy everything, and paste it in.
+3. Click **Run**. You should see "Success. No rows returned".
+   (If you ran an older `setup.sql` before, that's fine. Just run this new one too.)
 
-## 4. Turn off email confirmation
-Field Hunt accounts only need a username and password. No email is collected, which keeps kids' accounts private.
-1. In the left menu, click **Authentication**.
-2. Open **Sign In / Providers** (on some screens it's called **Providers**), then click **Email**.
-3. Turn **Confirm email** OFF.
-4. Click **Save**.
+### 4. Turn off email confirmation
+Accounts use only a username and password. No email is collected, which keeps kids' accounts private.
+1. Left menu: **Authentication**, then **Sign In / Providers** (sometimes just **Providers**), then **Email**.
+2. Turn **Confirm email** OFF and click **Save**.
 
-## 5. Copy your two keys
-1. In the left menu, click **Project Settings** (gear icon), then **API** (it may be called **Data API** or **API Keys**).
-2. Copy the **Project URL**. It looks like `https://abcdefgh.supabase.co`.
-3. Copy the **anon public** key. Newer projects may call it the **publishable** key, starting with `sb_publishable_`. Either one works.
-   Do **not** use the "service_role" or "secret" key.
+### 5. Copy your two keys
+1. Left menu: **Project Settings** (gear icon), then **API** (may be called **Data API** or **API Keys**).
+2. Copy the **Project URL**, which looks like `https://abcdefgh.supabase.co`.
+3. Copy the **anon public** key (newer projects call it the **publishable** key, starting `sb_publishable_`).
+   Never use the "service_role" or "secret" key in the app.
 
-## 6. Put the keys into the app
-1. Go to your Field Hunt repository on GitHub and click **config.js**.
-2. Click the **pencil** icon (Edit) at the top right of the file.
-3. Paste your values between the quotes, like this:
+---
+
+## Part B: Anthropic (the photo checker)
+
+### 6. Get an API key
+1. Go to **console.anthropic.com** and sign up.
+2. Open **Billing** and add a payment method or buy a small amount of credit.
+3. Set a **monthly spend limit** (under **Limits** in Settings) so costs can never surprise you. Each photo check costs a fraction of a cent, and the app also caps each player at 80 checks a day.
+4. Open **API Keys**, click **Create Key**, name it `field-hunt`, and copy it. It starts with `sk-ant-`. Keep it secret: it goes only into Supabase in the next step, never into the app files on GitHub.
+
+---
+
+## Part C: Connect the photo checker
+
+### 7. Add the key to Supabase as a secret
+1. In Supabase, left menu: **Edge Functions**, then **Secrets**.
+2. Add a new secret with name `ANTHROPIC_API_KEY`, paste your Anthropic key as the value, and click **Save**.
+
+### 8. Deploy the checker
+1. Left menu: **Edge Functions**, then **Deploy a new function**, then **Via Editor**.
+2. Name the function exactly: `verify-find`
+3. Delete the sample code in the editor. Open `verify-find.ts` from the Field Hunt folder, copy everything, and paste it in.
+4. Click **Deploy function**. Leave "Verify JWT" (or "Enforce JWT") switched ON, so only signed-in players can use it.
+
+---
+
+## Part D: Connect the app
+
+### 9. Put your Supabase keys into the app
+1. On GitHub, open your Field Hunt repository and click **config.js**.
+2. Click the **pencil** icon (Edit).
+3. Paste your values between the quotes:
    ```
    supabaseUrl: "https://abcdefgh.supabase.co",
-   supabaseAnonKey: "eyJhbGciOi...your long key..."
+   supabaseAnonKey: "your anon / publishable key"
    ```
-4. Click **Commit changes**, then **Commit changes** again.
-5. Wait for the green tick in the **Actions** tab, then close and reopen Field Hunt on your phone.
+4. Click **Commit changes** twice. Wait for the green tick in **Actions**, then close and reopen Field Hunt on your phone.
 
-## 7. Try it
-Open the **Me** tab, pick a username and password, and tap **Create account**. Your finds so far are added to the leaderboard automatically. Check the **Ranks** tab.
+### 10. Try it
+1. Open **Me**, pick a username and password, and tap **Create account**. Any guest finds on the phone move into the new account and get checked.
+2. Photograph something. You'll see "Checking your photo…", then the result.
+
+---
 
 ## Good to know
-- The anon (publishable) key is meant to be public. The database rules in `setup.sql` stop anyone changing other players' scores.
-- Only usernames, species names and points are shared. Photos and exact locations stay on each phone.
-- There's no password reset, because no email is collected. Players should write their password down.
-- For kids under 13, a parent should create the account and choose a username that isn't the child's real name.
+- **Privacy:** Photos are stored privately; only the player who took them can see them. The leaderboard shows only usernames, species counts and XP, never photos or locations.
+- **Points are worked out on the server**, including how rare each species is nearby, so they can't be faked from the phone. The same photo can't be used twice, and photos of screens, books, toys, pets or zoo animals don't count.
+- **No signal?** The photo is saved and gets checked automatically next time the app opens with signal.
+- **No password reset** is possible, because no email is collected. Players should write their passwords down.
+- **Kids under 13:** a parent should create the account and choose a username that isn't the child's real name.
+- **Which AI model:** Photo checks use a fast, low-cost Claude model. Identify uses a stronger one for better identifications, and each identify costs roughly a cent or two. To change either, add a secret named `VISION_MODEL` or `IDENTIFY_MODEL` in Edge Functions > Secrets with the model name from console.anthropic.com. If Identify ever reports an AI error, that model name is the first thing to check.
+- **Sightings** don't use the AI, so they're free. They're confirmed only by real GPS position: the player must be within 10 km of existing records of that species.
+- **Costs:** Supabase's free tier covers a small community. The Anthropic bill depends on how many photos are checked; your spend limit caps it.

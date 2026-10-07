@@ -1,33 +1,56 @@
-# Field Hunt — put it on your iPhone
+# Field Hunt
 
-Field Hunt is a web app you install from Safari. It needs to live at an https:// web address first, because iPhone only allows location and camera on secure sites. Both options below are free and take about 5 minutes.
+A nature-hunting game for adults and kids. Find the wildlife and plants around you, photograph them, and collect them as cards.
 
-## Option A: Netlify Drop (easiest, needs a computer)
-1. Unzip `field-hunt-app.zip` on your computer.
-2. Go to https://app.netlify.com/drop and drag the whole `field-hunt-app` folder onto the page.
-3. Netlify gives you a link like `https://something-random.netlify.app`. Make a free account when it asks, so the site doesn't expire.
+## What's in this folder
+| File | What it is | Where it goes |
+|---|---|---|
+| index.html | The app | GitHub |
+| sw.js | Lets the app open offline | GitHub |
+| manifest.webmanifest | Home Screen name and colours | GitHub |
+| config.js | Your Supabase keys (blank until you set up accounts) | GitHub |
+| icon-192.png, icon-512.png, apple-touch-icon.png, maskable-512.png | App icons | GitHub |
+| setup.sql | Creates the account tables and photo storage | Paste into Supabase |
+| verify-find.ts | The AI photo checker | Paste into a Supabase Edge Function |
+| SETUP-ACCOUNTS.md | Step-by-step guide to switch on accounts and photo checking | Read it |
+| README.md | This file | GitHub (optional) |
 
-## Option B: GitHub Pages
-1. Create a free account at github.com and make a new public repository called `field-hunt`.
-2. Click "uploading an existing file" and upload everything inside the folder (index.html, sw.js, manifest.webmanifest, the icons folder).
-3. Go to Settings > Pages, set Source to "Deploy from a branch", choose `main` and `/ (root)`, then Save.
-4. After a minute your app is at `https://YOUR-USERNAME.github.io/field-hunt/`.
+## Updating the app on GitHub
+1. On your repository page, click **Add file → Upload files**.
+2. Drag in every file from this folder, **except config.js if you've already put your keys in it** (uploading the blank one would wipe them).
+3. Click **Commit changes**.
+4. Wait for the green tick in the **Actions** tab.
+5. On your iPhone, close Field Hunt fully and reopen it. Do this twice if the new version doesn't show.
 
-## Install on iPhone
-1. Open your link in **Safari** (not Chrome).
-2. Tap the Share button, then **Add to Home Screen**, then **Add**.
-3. Open Field Hunt from the Home Screen. Allow location when asked.
+## Installing on iPhone
+Open your GitHub Pages link in **Safari**, tap **Share → Add to Home Screen → Add**, then open Field Hunt and allow location.
 
-## Using it
-- Tap **Use my location**, or type any park or place in the world and tap **Find**.
-- Tick the boxes you want: reptiles, amphibians, fish, mammals, birds, plants, trees. Tick as many as you like.
-- Pick a search radius and tap **Find species**.
-- The satellite map shows recent sightings as coloured dots. Tap **Show on map** on any species to see only its sightings.
-- Tap **I found it** to take your photo. Your finds show as yellow dots on the map and in **All my finds**.
-- Know something lives there that isn't listed? Tap **+ Add a species**, type its name and pick it. It stays on your list whenever you search that area.
+## How to play
+- **Hunt:** Tap **Near me** or type any park or place in the world. Tick what to hunt for (reptiles, amphibians, fish, mammals, birds, plants, trees), choose a distance in km or miles, and tap **Start the hunt**.
+- **Field cards:** Each species is a card rated Common, Uncommon, Rare, Epic or Legendary, based on how rarely it's been recorded nearby. Rarer cards are worth more XP.
+- **Collect:** Tap a card, then **I found it! Take a photo**. Bonus XP for your first find of the day and for exploring a new area.
+- **Saw it, but no photo:** Too fast to photograph? Tap a card, then **Saw it, but no photo**. Your phone's GPS position is checked against iNaturalist and GBIF records within 10 km. A confirmed sighting earns half points. Add a photo later to upgrade it to full points. Sightings show on the map as yellow rings.
+- **Identify something:** Don't know what it is? Tap **Identify something**, then snap or choose a photo, or describe it. The species AI suggests the likeliest matches for where you are, with reference photos. Tap **This is it** to add it to your cards and collect it. (Needs an account.)
+- **Add a species:** Know something lives there that isn't listed? Tap **+ Add a species you know is here**.
+- **Map:** Satellite map of recorded sightings, coloured by group. Your finds show as yellow dots. **Show on map** on any card shows just that species.
+- **Journal:** Your stats, 16 badges, and all your photos.
+- **Ranks:** Weekly and all-time leaderboards (needs accounts switched on).
+- **Me:** Create an account or sign in, and switch between km and miles.
+
+## Where the species come from
+- **iNaturalist:** community sightings confirmed by other naturalists.
+- **GBIF:** museum collections, wildlife surveys, eBird and national species atlases.
+
+## Accounts and photo checking
+Without setup, everyone plays as a guest, with progress saved on their phone. Follow **SETUP-ACCOUNTS.md** to switch on:
+- Usernames (no email needed) and leaderboards
+- Finds and photos saved to each account, so they follow players to a new phone
+- AI photo checking: a clear match earns full XP, an unsure photo earns half, and a wrong or faked photo earns none
+- Sightings checked against GPS location on the server
+- The Identify tool
+- Guest finds moving into the account when someone signs up
 
 ## Good to know
-- Species, photos and map pins come from iNaturalist research-grade sightings. Rare or threatened species have their exact spots hidden by iNaturalist, so they may appear in the list without pins.
-- "Trees" covers the main tree families (pines, oaks, eucalypts, palms and so on). Some shrubs in those families will show up too.
-- Your photos are saved only on your phone, inside the app. Deleting the app deletes them.
-- You need signal to search. The app itself opens offline once installed.
+- Photos are private to the player who took them. The leaderboard shows only usernames, species counts and XP.
+- Rare and threatened species sometimes have their exact locations hidden by the databases to protect them.
+- Look, don't touch. Keep well back from snakes and wild animals, and stay on trails.
