@@ -308,6 +308,18 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .bars.hours i.n{background:#4a5d9e} .bars.hours i.t{background:#d9822b} .bars.hours i.d{background:var(--sun)}
 .closest{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:700;background:var(--paper);border-radius:10px;padding:8px 10px}
 .closest svg{width:20px;height:20px;flex:none;color:var(--c)}
+.diff{align-self:flex-start;font-size:12px;font-weight:800;border-radius:999px;padding:3px 10px;color:#fff;background:var(--r-common)}
+.diff.easy{background:var(--r-uncommon)} .diff.moderate{background:#b07d12} .diff.hard{background:#d9601f}
+.sexes figcaption p{margin:3px 0 2px;font-size:13px;line-height:1.35}
+.keydiff{background:var(--paper);border-radius:10px;padding:8px 10px;font-size:13px}
+.keydiff ul,.wsx{margin:4px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:3px;font-size:13px}
+.juv{display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;align-items:start}
+.juv img,.juv .ph0{width:84px;height:84px;border-radius:10px;object-fit:cover;background:var(--line)}
+.juv > div{display:flex;flex-direction:column;min-width:0}
+.juv p{margin:2px 0;font-size:13px}
+.juv small{font-size:10px;color:var(--muted);overflow-wrap:anywhere}
+.mini{margin:0;font-size:13px}
+.guide a{color:var(--moss);font-weight:800}
 .myf span{position:absolute;inset:auto 0 0 0;padding:16px 6px 5px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.7));color:#fff;font-size:12px;font-weight:800;text-align:left;line-height:1.15}
 
 .board{display:flex;flex-direction:column;gap:6px}
@@ -1140,7 +1152,7 @@ function openSheet(key, fromGrid){
   const flip = $("#flip");
   const setFace = back => { sheetBack = back; flip.classList.toggle("flipped", back); flip.setAttribute("aria-pressed", String(back));
     flip.querySelector(".front").setAttribute("aria-hidden", String(back)); flip.querySelector(".back").setAttribute("aria-hidden", String(!back)); };
-  flip.onclick = () => setFace(!sheetBack);
+  flip.onclick = e => { if (e.target.closest("a")) return; setFace(!sheetBack); };
   flip.onkeydown = e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); setFace(!sheetBack); } };
   if (fromGrid) setTimeout(() => { if (sheetKey === key && $("#flip") === flip) setFace(true); }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 420);
   loadGuide(s).then(g => {
@@ -1158,13 +1170,13 @@ function openSheet(key, fromGrid){
 
 /* ---------- field guide (back of each card) ---------- */
 const guideCache = new Map();
-const FACTS_V = 2;
+const FACTS_V = 3;
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const sum12 = m => m ? Object.values(m).reduce((a, b) => a + (+b || 0), 0) : 0;
 async function loadFacts(s){
   const k = s.sci.toLowerCase(); const local = ls.get("fh-facts", {});
   if (local[k] && (+local[k].v || 1) >= FACTS_V) return { facts: local[k] };
-  if (!state.sb) return { facts:null, note:"More field notes (habitat, diet, seasons) switch on once the account server is set up." };
+  if (!state.sb) return local[k] ? { facts: local[k] } : { facts:null, note:"More field notes (habitat, diet, seasons) switch on once the account server is set up." };
   try{
     const { data } = await state.sb.from("species_facts").select("facts").eq("sci", k).maybeSingle();
     let facts = data?.facts || null;
@@ -1173,15 +1185,39 @@ async function loadFacts(s){
       if (!error && d?.facts) facts = d.facts;
     }
     if (facts){ local[k] = facts; const ks = Object.keys(local); if (ks.length > 300) delete local[ks[0]]; ls.set("fh-facts", local); return { facts }; }
+    if (local[k]) return { facts: local[k] };
     return { facts:null, note: state.user ? "Couldn't load the field notes right now. Flip again later." : "Sign in (Me tab) to unlock field notes: habitat, diet, seasons and more." };
-  }catch{ return { facts:null, note:"Couldn't load the field notes right now." }; }
+  }catch{ return local[k] ? { facts: local[k] } : { facts:null, note:"Couldn't load the field notes right now." }; }
+}
+/* Wikipedia: free notes for every player, no setup needed (CC BY-SA) */
+const sentencesOf = t => (String(t).replace(/\s+/g, " ").match(/[^.!?]+[.!?]+(?=\s|$)/g) || []).map(x => x.trim());
+const brief = (t, n = 3, max = 420) => { let out = ""; for (const x of sentencesOf(t).slice(0, n)){ if ((out + " " + x).length > max) break; out += (out ? " " : "") + x; } return out; };
+function parseWiki(text, url, title){
+  const parts = String(text).split(/\n={2,4}\s*([^=\n]+?)\s*={2,4}\n/);
+  const secs = []; for (let i = 1; i < parts.length; i += 2) secs.push({ h:parts[i].trim(), t:(parts[i + 1] || "").trim() });
+  const pick = re => secs.filter(x => re.test(x.h) && x.t).map(x => x.t).join(" ");
+  const appearance = pick(/descri|appearance|morpholog|identif|characteristic|anatomy/i);
+  const w = { url, title, appearance: brief(appearance), habitat: brief(pick(/habitat|distribution|range/i)),
+    diet: brief(pick(/diet|feeding|food|prey|forag/i)), habits: brief(pick(/behavio|activity/i)),
+    breeding: brief(pick(/reproduc|breeding|life cycle|mating|nesting|courtship/i)) };
+  const sexSrc = [pick(/dimorph|sexual|sexes/i), appearance, pick(/reproduc|breeding|courtship/i), parts[0]].join(" ");
+  w.sexing = [...new Set(sentencesOf(sexSrc).filter(x => /\b(males?|females?|sexes|sexually dimorphic|dimorphism)\b/i.test(x) && x.length < 260))].slice(0, 5);
+  return (w.appearance || w.habitat || w.diet || w.habits || w.breeding || w.sexing.length) ? w : null;
+}
+async function loadWiki(s){
+  const get = async t => { const r = await getJSON(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts|info&inprop=url&explaintext=1&exsectionformat=wiki&redirects=1&titles=${encodeURIComponent(t)}&format=json&origin=*`);
+    const pg = Object.values(r?.query?.pages || {})[0]; return pg && !("missing" in pg) && pg.extract && !/may (also )?refer to:/i.test(pg.extract.slice(0, 400)) ? pg : null; };
+  try{
+    let pg = await get(s.sci); if (!pg && s.name && s.name !== s.sci) pg = await get(s.name);
+    return pg ? parseWiki(pg.extract, pg.fullurl || `https://en.wikipedia.org/wiki/${encodeURIComponent(pg.title)}`, pg.title) : null;
+  }catch{ return null; }
 }
 function loadGuide(s){
   if (guideCache.has(s.key)) return guideCache.get(s.key);
   const p = (async () => {
     const loc = state.loc, plant = isPlantish(s.group) || s.group === "fungi", id = s.inatId;
     const g = { tax:[], summary:"", status:"", months:null, where:"", flower:null, male:null, female:null, facts:null, note:"" };
-    const jobs = [loadFacts(s).then(x => { g.facts = x.facts; g.note = x.note || ""; })];
+    const jobs = [loadFacts(s).then(x => { g.facts = x.facts; g.note = x.note || ""; }), loadWiki(s).then(w => { g.wiki = w; })];
     if (id){
       jobs.push(getJSON(`${INAT}/taxa/${id}?locale=en`).then(r => {
         const t = r.results?.[0]; if (!t) return;
@@ -1195,9 +1231,10 @@ function loadGuide(s){
       jobs.push((async () => { let m = await hist("", true), where = `within ${fmtDist(200)} of here`; if (sum12(m) < 8){ m = await hist("", false); where = "worldwide"; } g.months = m; g.where = where; })());
       if (plant) jobs.push((async () => { let m = await hist("&term_id=12&term_value_id=13", true); if (sum12(m) < 5) m = await hist("&term_id=12&term_value_id=13", false); g.flower = sum12(m) >= 3 ? m : null; })());
       else {
-        const sexPhoto = v => getJSON(`${INAT}/observations?taxon_id=${id}&term_id=9&term_value_id=${v}&photos=true&quality_grade=research&captive=false&per_page=1&order_by=votes`).then(r => {
+        const sexPhoto = (v, term = 9) => getJSON(`${INAT}/observations?taxon_id=${id}&term_id=${term}&term_value_id=${v}&photos=true&quality_grade=research&captive=false&per_page=1&order_by=votes`).then(r => {
           const o = r.results?.[0], ph = o?.photos?.[0]; return ph ? { url: ph.url.replace("square", "medium"), by: ph.attribution || "" } : null; }).catch(() => null);
-        jobs.push(sexPhoto(11).then(x => { g.male = x; }), sexPhoto(10).then(x => { g.female = x; }));
+        jobs.push(sexPhoto(11).then(x => { g.male = x; }), sexPhoto(10).then(x => { g.female = x; }),
+          sexPhoto(s.group === "insects" ? 6 : 8, 1).then(x => { g.juv = x; }));
       }
     }
     if (id && loc){
@@ -1265,22 +1302,45 @@ function wlookHTML(s, g){
 function whereSection(s, g){
   const plant = isPlantish(s.group) || s.group === "fungi", F = g.facts || {};
   const act = F.activity || dataActivity(g.hours), fromData = !F.activity && act;
+  const W = g.wiki || {}, ok = v => v && !/^(not well known|n\/a)\.?$/i.test(v);
   const rows = [["Habitat","habitat"],["Exact spots to check","microhabitat"],["Best time","best_time"],[plant ? "What to look for" : "Habits","habits"],[plant ? "Spot it from afar" : "Signs it's nearby","signs"],["Best weather","weather"],["Spotting tip","spot_tip"]]
-    .filter(([, k]) => F[k] && !/^(not well known|n\/a)\.?$/i.test(F[k]));
+    .map(([l, k]) => [l, ok(F[k]) ? F[k] : (k === "habitat" || k === "habits") && W[k] ? W[k] : "", ok(F[k]) ? "" : "w"]).filter(([, v]) => v);
+  const fromWiki = rows.some(r => r[2] === "w");
   return `<div class="gsec"><div class="label">Where to look</div>
     ${act && ACT[act] && !plant ? `<div class="actline">${ACT[act][1]}<div><b>${ACT[act][0]}</b><small>${fromData ? "Based on when people have recorded it." : act === "nocturnal" ? "Bring a torch and look after dark." : act === "crepuscular" ? "Look around sunrise and sunset." : act === "diurnal" ? "Look during daylight." : "Can turn up at any hour."}</small></div></div>` : ""}
     ${g.hours ? `${hourBars(g.hours)}<p class="tiny">Records by time of day, ${esc(g.hoursWhere)}. Most recorded: ${peakHours(g.hours.b)}. People record more in daylight, so night-time animals can look less active than they are.</p>` : ""}
     ${F.near?.length ? `<div class="nearlist">${F.near.map(t => `<span class="wchip">${PIN}${esc(cap(t))}</span>`).join("")}</div>` : ""}
-    ${rows.length ? `<dl class="facts">${rows.map(([l, k]) => `<div><dt>${l}</dt><dd>${esc(F[k])}</dd></div>`).join("")}</dl>` : ""}
+    ${rows.length ? `<dl class="facts">${rows.map(([l, v]) => `<div><dt>${l}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>` : ""}
+    ${fromWiki ? `<p class="tiny">${F.v ? "Some notes" : "Notes"} from <a href="${esc(W.url)}" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA).</p>` : ""}
     ${g.closest ? `<div class="closest">${PIN}<span>${closestText(g.closest)}. Tap Show on map for every spot.</span></div>` : ""}
-    ${!rows.length ? `<p class="hint">${g.note ? esc(g.note) : state.user ? "Tips on exact spots and habits will appear here." : "Sign in (Me tab) to unlock tips on exact spots, habits and the best time to look."}</p>` : ""}
+    ${!ok(F.microhabitat) ? `<p class="hint">${!state.sb ? "Exact spots, signs and spotting tips come from the species AI, which switches on with the account server." : state.user ? "Exact spots, signs and spotting tips will appear here." : "Sign in (Me tab) to unlock exact spots, signs and spotting tips from the species AI."}</p>` : ""}
+  </div>`;
+}
+function sexingSection(s, g){
+  const F = g.facts || {}, S = F.sexing || {}, W = g.wiki || {};
+  const kd = S.key_differences || [], hasAI = !!(S.male || S.female || kd.length);
+  const juvLabel = s.group === "insects" ? "Larva" : "Young";
+  const diffWord = { easy:"Easy to tell apart", moderate:"Takes a close look", hard:"Hard to tell apart", "not possible by eye":"Can't be told apart by eye" }[S.difficulty];
+  return `<div class="gsec"><div class="label">Telling males &amp; females apart</div>
+    ${diffWord ? `<span class="diff ${S.difficulty === "not possible by eye" ? "" : esc(S.difficulty)}">${diffWord}</span>` : ""}
+    <div class="sexes">${[["Male", g.male, S.male], ["Female", g.female, S.female]].map(([l, x, txt]) => `<figure>${x ? `<img src="${esc(x.url)}" alt="${l} ${esc(s.name)}" loading="lazy">` : `<div class="ph0"></div>`}<figcaption><b>${l}</b>${txt ? `<p>${esc(txt)}</p>` : ""}<small>${x ? esc(x.by) : "No tagged photo yet"}</small></figcaption></figure>`).join("")}</div>
+    ${kd.length ? `<div class="keydiff"><b>Key differences</b><ul>${kd.map(k => `<li>${esc(k)}</li>`).join("")}</ul></div>` : ""}
+    ${S.seasonal ? `<p class="mini"><b>Breeding season:</b> ${esc(S.seasonal)}</p>` : ""}
+    ${g.juv || S.juveniles ? `<div class="juv">${g.juv ? `<img src="${esc(g.juv.url)}" alt="${juvLabel} ${esc(s.name)}" loading="lazy">` : `<div class="ph0"></div>`}<div><b>${juvLabel}</b>${S.juveniles ? `<p>${esc(S.juveniles)}</p>` : ""}<small>${g.juv ? esc(g.juv.by) : "No tagged photo yet"}</small></div></div>` : ""}
+    ${!hasAI ? (W.sexing?.length ? `<ul class="wsx">${W.sexing.map(x => `<li>${esc(x)}</li>`).join("")}</ul><p class="tiny">From <a href="${esc(W.url)}" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA).</p>`
+        : F.sexes ? `<p class="mini">${esc(F.sexes)}</p>` : `<p class="hint">No notes yet on telling the sexes apart${!state.user && state.sb ? ". Sign in to unlock the species AI's ID guide" : ""}.</p>`)
+      : `<p class="tiny">ID guide written by AI. Photos from iNaturalist, credited above.</p>`}
   </div>`;
 }
 function guideHTML(s, g){
   const plant = isPlantish(s.group) || s.group === "fungi", F = g.facts || {};
   const rows = plant ? [["How it grows","growth"],[s.group === "fungi" ? "When it fruits" : "Flowering & fruiting","season"],["Size","size"],["Lifespan","lifespan"],["Fun fact","fun_fact"]]
-                     : [["Diet","diet"],["Breeding season","season"],["Size","size"],["Male vs female","sexes"],["Lifespan","lifespan"],["Fun fact","fun_fact"]];
-  const facts = rows.filter(([, k]) => F[k] && !/^not well known\.?$/i.test(F[k]));
+                     : [["Diet","diet"],["Breeding season","season"],["Size","size"],["Lifespan","lifespan"],["Fun fact","fun_fact"]];
+  const W = g.wiki || {}, okv = v => v && !/^not well known\.?$/i.test(v);
+  const WMAP = { diet:"diet", season:"breeding" };
+  const facts = [...(W.appearance ? [["Appearance", W.appearance, true]] : []),
+    ...rows.map(([l, k]) => [l, okv(F[k]) ? F[k] : (WMAP[k] && W[WMAP[k]]) || "", !okv(F[k])]).filter(([, v]) => v)];
+  const anyWiki = facts.some(f => f[2]), anyAI = facts.some(f => !f[2]);
   return `<div class="ghead"><span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")} · Field guide</span><b class="gnm">${esc(s.name)}</b><i class="sci">${esc(s.sci)}</i></div>
     ${safetySection(s, s.danger, F.caution)}
     ${whereSection(s, g)}
@@ -1288,11 +1348,10 @@ function guideHTML(s, g){
       ${sum12(g.months) ? `${monthBars(g.months, "seen")}<p class="tiny">Sightings by month, ${esc(g.where)}. Most seen: ${peakMonths(g.months)}.</p>` : `<p class="hint">Not enough sightings yet to chart the seasons.</p>`}
       ${g.flower ? `${monthBars(g.flower, "flower")}<p class="tiny">Records of it in flower, by month. Peak flowering: ${peakMonths(g.flower)}.</p>` : ""}</div>
     <div class="gsec"><div class="label">Field notes</div>
-      ${facts.length ? `<dl class="facts">${facts.map(([l, k]) => `<div><dt>${l}</dt><dd>${esc(F[k])}</dd></div>`).join("")}</dl><p class="tiny">Field notes written by AI. Tap Learn more to check the details.</p>`
+      ${facts.length ? `<dl class="facts">${facts.map(([l, v]) => `<div><dt>${l}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>
+        <p class="tiny">${anyAI ? "Field notes written by AI" : ""}${anyAI && anyWiki ? "; " : ""}${anyWiki ? `${anyAI ? "others" : "Notes"} from <a href="${esc(W.url)}" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA)` : ""}. Tap Learn more to check the details.</p>`
         : `${g.summary ? `<p style="margin:0;font-size:14px">${esc(g.summary)}</p>` : ""}${g.note ? `<p class="hint">${esc(g.note)}</p>` : ""}`}</div>
-    ${plant ? "" : `<div class="gsec"><div class="label">Male &amp; female</div>
-      ${g.male || g.female ? `<div class="sexes">${[["Male", g.male], ["Female", g.female]].map(([l, x]) => `<figure>${x ? `<img src="${esc(x.url)}" alt="${l} ${esc(s.name)}" loading="lazy">` : `<div class="ph0"></div>`}<figcaption><b>${l}</b><small>${x ? esc(x.by) : "No tagged photo yet"}</small></figcaption></figure>`).join("")}</div>`
-        : `<p class="hint">No photos tagged male or female for this species yet.</p>`}</div>`}
+    ${plant ? "" : sexingSection(s, g)}
     <div class="gsec"><div class="label">Taxonomy</div>${g.tax.length ? `<ol class="tax">${g.tax.map(t => `<li><span>${esc(cap(t.rank))}</span><b>${esc(t.name)}</b>${t.common && t.rank !== "species" ? `<small>${esc(cap(t.common))}</small>` : ""}</li>`).join("")}</ol>` : `<p class="hint">Couldn't load the taxonomy right now.</p>`}
       ${g.status ? `<p class="tiny">Conservation status: ${esc(g.status)}</p>` : ""}</div>`;
 }
