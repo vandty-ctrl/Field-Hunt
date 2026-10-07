@@ -212,6 +212,52 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .cand .btn{justify-self:start;padding:7px 12px;font-size:13px;margin-top:4px}
 .conf{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:2px 8px;color:#fff;background:var(--r-common)}
 .conf.high{background:var(--r-uncommon)} .conf.medium{background:#b07d12}
+.sheettop{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 16px 8px}
+.sheettop .hint{font-weight:700}
+.close2{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--paper);color:var(--ink);font-size:22px;line-height:1;flex:none}
+.flipwrap{perspective:1400px;padding-inline:16px}
+.flip{position:relative;height:min(60vh,500px);transition:transform .65s cubic-bezier(.3,.7,.2,1);transform-style:preserve-3d;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.flip.flipped{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:20px;border:3px solid var(--rc);background:var(--card);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 4px 0 var(--rc)}
+.face.back{transform:rotateY(180deg)}
+.fimg{flex:1;min-height:0;position:relative;background:var(--line)}
+.fimg img{width:100%;height:100%;object-fit:cover;display:block}
+.fimg .rib{position:absolute;left:10px;top:10px;background:var(--rc);color:#fff;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border-radius:6px;padding:3px 8px}
+.fimg .pts{position:absolute;right:10px;top:10px;background:rgba(10,20,14,.72);color:#ffd27a;font-family:var(--font-display);font-weight:800;border-radius:6px;padding:2px 8px}
+.fbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:2px}
+.fbody h2{font-size:26px}
+.fbody .sci,.ghead .sci{font-family:var(--font-latin);font-style:italic;font-size:17px;color:var(--muted)}
+.fliphint{position:absolute;right:10px;bottom:10px;font-size:12px;font-weight:800;color:#fff;background:rgba(10,20,14,.72);border-radius:999px;padding:5px 10px;display:flex;align-items:center;gap:5px}
+.ghead .gname,.fbody .gname{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--c)}
+.fliphint svg{width:16px;height:16px}
+.guide{flex:1;overflow-y:auto;padding:14px 14px 18px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch}
+.ghead{display:flex;flex-direction:column;gap:1px;padding-bottom:10px;border-bottom:2px dashed var(--line)}
+.gnm{font-family:var(--font-display);font-size:22px;line-height:1.1}
+.gsec{display:flex;flex-direction:column;gap:6px}
+.tax{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.tax li{display:grid;grid-template-columns:76px minmax(0,1fr);gap:2px 8px;padding:5px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.tax li span{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tax li b{font-weight:800;overflow-wrap:anywhere}
+.tax li small{grid-column:2;color:var(--muted);font-size:12px;margin-top:-2px}
+.tax li:last-child b{font-family:var(--font-latin);font-style:italic;font-weight:500;font-size:16px}
+.facts{margin:0;display:grid;grid-template-columns:1fr;gap:8px}
+.facts div{background:var(--paper);border-radius:10px;padding:8px 10px}
+.facts dt{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--c)}
+.facts dd{margin:2px 0 0;font-size:14px}
+.caution{background:var(--danger);color:#fff;border-radius:10px;padding:8px 10px;font-weight:800;font-size:14px}
+.tiny{font-size:11px;color:var(--muted);margin:0}
+.bars{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;height:74px;align-items:end}
+.bars span{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:2px}
+.bars i{display:block;width:100%;min-height:2px;border-radius:3px 3px 0 0;background:var(--c)}
+.bars.flower i{background:#d9558c}
+.bars b{font-size:10px;color:var(--muted);font-weight:800}
+.sexes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sexes figure{margin:0;display:flex;flex-direction:column;gap:4px;min-width:0}
+.sexes img,.sexes .ph0{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:var(--line)}
+.sexes figcaption{display:flex;flex-direction:column;min-width:0}
+.sexes small{font-size:10px;color:var(--muted);overflow-wrap:anywhere;line-height:1.25}
+.gload{color:var(--muted);text-align:center;padding:30px 0}
+@media (prefers-reduced-motion:reduce){.flip{transition:none}}
 .myf span{position:absolute;inset:auto 0 0 0;padding:16px 6px 5px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.7));color:#fff;font-size:12px;font-weight:800;text-align:left;line-height:1.15}
 
 .board{display:flex;flex-direction:column;gap:6px}
@@ -467,6 +513,15 @@ const state = {
 };
 const keyOf = x => String(x);
 
+// People, pets and farm animals never count: Field Hunt is for wild species only.
+const NOT_WILD = ["homo","felis catus","felis silvestris catus","canis familiaris","canis lupus familiaris","bos taurus","bos indicus","bos grunniens","bubalus bubalis",
+  "equus caballus","equus ferus caballus","equus asinus","equus africanus asinus","ovis aries","ovis ammon aries","capra hircus","capra aegagrus hircus","sus domesticus",
+  "sus scrofa domesticus","gallus gallus domesticus","gallus domesticus","meleagris gallopavo domesticus","anser anser domesticus","anser cygnoides domesticus",
+  "anas platyrhynchos domesticus","cairina moschata domestica","columba livia domestica","cavia porcellus","oryctolagus cuniculus domesticus","mesocricetus auratus",
+  "mustela furo","mustela putorius furo","lama glama","vicugna pacos","camelus bactrianus","camelus dromedarius","bombyx mori","serinus canaria domestica"];
+const isNotWild = (sci, name) => { const x = String(sci || "").toLowerCase().trim(); return NOT_WILD.some(b => x === b || x.startsWith(b + " ")) || /^domestic\b/i.test(String(name || "").trim()); };
+const NOT_WILD_MSG = "Field Hunt only counts wild species, not people, pets or farm animals.";
+
 /* ---------- units ---------- */
 const KM_OPTS = [1,2,5,10,25,50];
 const MI_OPTS = [0.5,1,3,5,15,30];
@@ -500,7 +555,7 @@ const idb = (() => {
 const urls = new Map();
 const findURL = f => { if (!f?.photo) return ""; const k = String(f.id); if (!urls.has(k)) urls.set(k, URL.createObjectURL(f.photo)); return urls.get(k); };
 const dropURL = id => { const k = String(id); if (urls.has(k)){ URL.revokeObjectURL(urls.get(k)); urls.delete(k); } };
-const isGot = f => !!f && f.verdict !== "no" && f.verdict !== "unconfirmed";
+const isGot = f => !!f && f.verdict !== "no" && f.verdict !== "unconfirmed" && !isNotWild(f.sci, f.name);
 const thumbURL = f => findURL(f) || f?.refPhoto || "";
 const isSighting = f => !!f && f.kind === "sighting" && !f.photo;
 const VERDICT = { yes:"Verified", unsure:"Half points", no:"No match", pending:"Checking…", sighted:"Sighted", unconfirmed:"Unconfirmed" };
@@ -608,6 +663,8 @@ async function gbifKeys(g){
 }
 
 /* ---------- search: iNaturalist + GBIF ---------- */
+// GBIF records from zoos, botanical gardens and farms (living collections, managed or cultivated) don't count
+const notWildRecord = r => r.basisOfRecord === "LIVING_SPECIMEN" || /managed|captive|cultivated|domestic/i.test(String(r.establishmentMeans || "") + " " + String(r.degreeOfEstablishment || "")) || isNotWild(r.species, r.vernacularName);
 let seqN = 0;
 async function search(){
   if (!state.loc) return setStatus("Set a location first: tap Near me or type a park.", true);
@@ -639,13 +696,13 @@ async function search(){
       cur.inatId ||= s.inatId; cur.gbifKey ||= s.gbifKey; cur.photo ||= s.photo;
       if (cur.name === cur.sci && s.name !== s.sci) cur.name = s.name;
       if (s.group === "trees") cur.group = "trees"; };
-    for (const { g, counts } of results) for (const c of counts){ const t = c.taxon; if (!t) continue;
+    for (const { g, counts } of results) for (const c of counts){ const t = c.taxon; if (!t || isNotWild(t.name, t.preferred_common_name)) continue;
       put({ inatId:t.id, name: t.preferred_common_name ? cap(t.preferred_common_name) : t.name, sci:t.name, group:g, photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", count:c.count, sources:["iNaturalist"] }); }
     const gbPins = [];
     for (const { g, gb } of results){
       const tally = new Map();
       for (const r of gb){
-        if (r.datasetKey === INAT_GBIF_DATASET || !r.species || !r.speciesKey) continue;
+        if (r.datasetKey === INAT_GBIF_DATASET || !r.species || !r.speciesKey || notWildRecord(r)) continue;
         const grp = (g === "plants" || g === "trees") ? g : (GBIF_CLASS[r.class] || GBIF_CLASS[r.order] || g);
         const t = tally.get(r.speciesKey) || { gbifKey:r.speciesKey, sci:r.species, name:r.vernacularName ? cap(r.vernacularName) : r.species, group:grp, photo:"", count:0, sources:["GBIF"] };
         t.count++;
@@ -671,14 +728,14 @@ async function search(){
     }
     state.species = [...bySci.values()]
       .map(s => ({ ...s, key: s.inatId ? keyOf(s.inatId) : "g" + s.gbifKey }))
-      .filter(s => state.groups.has(s.group))
+      .filter(s => state.groups.has(s.group) && !isNotWild(s.sci, s.name))
       .sort((a,b) => b.count - a.count);
     mergeCustom();
 
     obsLayer.clearLayers(); let pins = 0;
     const gOf = new Map(state.species.map(s => [s.sci.toLowerCase(), s]));
     for (const { g, obs } of results) for (const o of obs){
-      if (o.obscured || !o.geojson?.coordinates) continue;
+      if (o.obscured || !o.geojson?.coordinates || isNotWild(o.taxon?.name, o.taxon?.preferred_common_name)) continue;
       const sp = gOf.get((o.taxon?.name || "").toLowerCase());
       addPin({ lat:o.geojson.coordinates[1], lng:o.geojson.coordinates[0], name: sp?.name || cap(o.taxon?.preferred_common_name) || o.taxon?.name, sci:o.taxon?.name, img:o.photos?.[0]?.url?.replace("square","small"), date:o.observed_on, src:"iNaturalist", url:`https://www.inaturalist.org/observations/${o.id}` }, sp?.group || g); pins++;
     }
@@ -698,7 +755,7 @@ function kmBetween(a, b){ const R = 6371, r = x => x * Math.PI / 180; const dLat
   const h = Math.sin(dLat/2)**2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng/2)**2; return 2 * R * Math.asin(Math.sqrt(h)); }
 function mergeCustom(){
   if (!state.loc) return; const have = new Set(state.species.map(s => s.key));
-  const near = customs().filter(c => !have.has(c.key) && kmBetween(c, state.loc) <= Math.max(state.radiusKm, 2));
+  const near = customs().filter(c => !have.has(c.key) && !isNotWild(c.sci, c.name) && kmBetween(c, state.loc) <= Math.max(state.radiusKm, 2));
   state.species = [...near.map(c => ({ ...c, inatId: c.inatId ?? c.id, count:0, custom:true, sources:["Added by you"] })), ...state.species];
 }
 $("#addBtn").addEventListener("click", () => { const p = $("#addPanel"); p.classList.toggle("hidden"); const open = !p.classList.contains("hidden"); $("#addBtn").setAttribute("aria-expanded", String(open)); if (open) $("#addInput").focus(); });
@@ -707,12 +764,14 @@ $("#addInput").addEventListener("input", e => {
   clearTimeout(addT); const q = e.target.value.trim(); if (q.length < 2){ $("#hits").innerHTML = ""; return; }
   addT = setTimeout(async () => { const s = ++addSeq;
     try{ const r = await getJSON(`${INAT}/taxa/autocomplete?q=${encodeURIComponent(q)}&per_page=8&locale=en`); if (s !== addSeq) return;
-      lastHits = (r.results || []).filter(t => t.rank_level <= 10);
-      $("#hits").innerHTML = lastHits.length ? lastHits.map((t, i) => `<button class="hit" type="button" data-hit="${i}">${t.default_photo?.square_url ? `<img src="${esc(t.default_photo.square_url)}" alt="">` : '<span class="ph0"></span>'}<span><b>${esc(t.preferred_common_name ? cap(t.preferred_common_name) : t.name)}</b><i>${esc(t.name)}</i></span></button>`).join("") : '<p class="hint">No species match. Try the scientific name.</p>';
+      const all = (r.results || []).filter(t => t.rank_level <= 10);
+      lastHits = all.filter(t => !isNotWild(t.name, t.preferred_common_name));
+      $("#hits").innerHTML = !lastHits.length && all.length ? `<p class="hint">${NOT_WILD_MSG}</p>` : lastHits.length ? lastHits.map((t, i) => `<button class="hit" type="button" data-hit="${i}">${t.default_photo?.square_url ? `<img src="${esc(t.default_photo.square_url)}" alt="">` : '<span class="ph0"></span>'}<span><b>${esc(t.preferred_common_name ? cap(t.preferred_common_name) : t.name)}</b><i>${esc(t.name)}</i></span></button>`).join("") : '<p class="hint">No species match. Try the scientific name.</p>';
     }catch{ if (s === addSeq) $("#hits").innerHTML = '<p class="hint">Couldn\'t search right now. Check your signal.</p>'; } }, 350);
 });
 // Put an iNaturalist taxon on this area's cards (returns its key)
 function addCustom(t, groupHint, quiet){
+  if (isNotWild(t.name, t.preferred_common_name)){ toast(NOT_WILD_MSG, 4000); return null; }
   const name = t.preferred_common_name ? cap(t.preferred_common_name) : t.name; const key = keyOf(t.id);
   const existing = state.species.find(s => s.key === key || s.sci.toLowerCase() === String(t.name).toLowerCase());
   if (existing){ if (!quiet) toast(`${esc(existing.name)} is already on your cards`); return existing.key; }
@@ -752,21 +811,29 @@ function renderGrid(){
 }
 $("#grid").addEventListener("click", e => {
   if (e.target.closest("#moreBtn")){ state.showN += 40; renderGrid(); return; }
-  const c = e.target.closest(".tcard"); if (c) openSheet(c.dataset.k);
+  const c = e.target.closest(".tcard"); if (c) openSheet(c.dataset.k, true);
 });
 
-/* ---------- species sheet ---------- */
-let sheetKey = null;
-function openSheet(key){
-  const s = state.species.find(x => x.key === key); if (!s) return; sheetKey = key;
+/* ---------- species sheet: a flip card ---------- */
+let sheetKey = null, sheetBack = false;
+const FLIP_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v4.5h-4.5"/></svg>';
+function openSheet(key, fromGrid){
+  const s = state.species.find(x => x.key === key); if (!s) return;
+  if (fromGrid || key !== sheetKey) sheetBack = false;
+  sheetKey = key;
   const f0 = state.finds.get(key), f = isGot(f0) ? f0 : null, r = rarityOf(s);
   const more = s.inatId ? `https://www.inaturalist.org/taxa/${s.inatId}` : `https://www.gbif.org/species/${s.gbifKey}`;
   $("#sheet").className = `sheet on r-${r.id}`;
-  $("#sheet").innerHTML = `<div class="hero">${s.photo ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}">` : ""}<button class="close" id="sheetClose" type="button" aria-label="Close">×</button></div>
+  $("#sheet").innerHTML = `<div class="sheettop"><span class="hint">Tap the card to flip it</span><button class="close2" id="sheetClose" type="button" aria-label="Close">×</button></div>
+    <div class="flipwrap"><div class="flip${sheetBack ? " flipped" : ""} g-${s.group}" id="flip" role="button" tabindex="0" aria-pressed="${sheetBack}" aria-label="Flip the ${esc(s.name)} card">
+      <div class="face front" aria-hidden="${sheetBack}">
+        <div class="fimg">${s.photo ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}">` : ""}<span class="rib">${r.label}</span><span class="pts">${f ? "Got" : "+" + r.pts + " XP"}</span><span class="fliphint">${FLIP_ICON}Flip for field guide</span></div>
+        <div class="fbody"><span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")}</span><h2 id="sheetTitle">${esc(s.name)}</h2><div class="sci">${esc(s.sci)}</div>
+          <p class="hint">${s.custom ? "You added this species to this area." : `${s.count} record${s.count === 1 ? "" : "s"} within ${fmtDist(state.radiusKm)}`} · From ${esc(s.sources.join(" + "))}</p></div>
+      </div>
+      <div class="face back" aria-hidden="${!sheetBack}"><div class="guide" id="guide"><div class="gload">Opening the field guide…</div></div></div>
+    </div></div>
     <div class="inner">
-      <div class="tags"><span class="tag rar">${r.label} · +${r.pts} XP</span><span class="tag">${esc(GROUPS[s.group]?.one || "Wildlife")}</span></div>
-      <h2 id="sheetTitle">${esc(s.name)}</h2><div class="sci">${esc(s.sci)}</div>
-      <p class="hint">${s.custom ? "You added this species to this area." : `${s.count} record${s.count === 1 ? "" : "s"} within ${fmtDist(state.radiusKm)}`} · From ${esc(s.sources.join(" + "))}</p>
       ${verdictBox(f0)}
       ${f ? `<div class="mine-photo"><img src="${esc(thumbURL(f))}" alt="${isSighting(f) ? "" : "Your photo"}"><div><b>${isSighting(f) ? "Sighted" : "Collected"} ${esc(new Date(f.at).toLocaleDateString())}</b><br><span class="hint">+${f.points || 0} XP earned${f.userNote ? ` · “${esc(f.userNote)}”` : ""}</span></div></div>` : ""}
       <div id="sightRow"></div>
@@ -780,10 +847,90 @@ function openSheet(key){
     </div>`;
   $("#scrim").classList.add("on");
   $("#sheetClose").onclick = closeSheet;
+  const flip = $("#flip");
+  const setFace = back => { sheetBack = back; flip.classList.toggle("flipped", back); flip.setAttribute("aria-pressed", String(back));
+    flip.querySelector(".front").setAttribute("aria-hidden", String(back)); flip.querySelector(".back").setAttribute("aria-hidden", String(!back)); };
+  flip.onclick = () => setFace(!sheetBack);
+  flip.onkeydown = e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); setFace(!sheetBack); } };
+  if (fromGrid) setTimeout(() => { if (sheetKey === key && $("#flip") === flip) setFace(true); }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 420);
+  loadGuide(s).then(g => { if (sheetKey === key && $("#guide")) $("#guide").innerHTML = guideHTML(s, g); });
   $("#shootBtn").onclick = () => { state.pending = key; $("#cam").value = ""; $("#cam").click(); };
   $("#sightBtn")?.addEventListener("click", () => openSightPanel(key));
   $("#mapBtn").onclick = () => { closeSheet(); showOnMap(key); };
   if (s.custom) $("#unaddBtn").onclick = () => removeCustom(key);
+}
+
+/* ---------- field guide (back of each card) ---------- */
+const guideCache = new Map();
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const sum12 = m => m ? Object.values(m).reduce((a, b) => a + (+b || 0), 0) : 0;
+async function loadFacts(s){
+  const k = s.sci.toLowerCase(); const local = ls.get("fh-facts", {});
+  if (local[k]) return { facts: local[k] };
+  if (!state.sb) return { facts:null, note:"More field notes (habitat, diet, seasons) switch on once the account server is set up." };
+  try{
+    const { data } = await state.sb.from("species_facts").select("facts").eq("sci", k).maybeSingle();
+    let facts = data?.facts || null;
+    if (!facts && state.user){
+      const { data:d, error } = await state.sb.functions.invoke("verify-find", { body:{ mode:"facts", sci:s.sci, name:s.name, group:s.group, inat_id: s.inatId ? String(s.inatId) : "" } });
+      if (!error) facts = d?.facts || null;
+    }
+    if (facts){ local[k] = facts; const ks = Object.keys(local); if (ks.length > 300) delete local[ks[0]]; ls.set("fh-facts", local); return { facts }; }
+    return { facts:null, note: state.user ? "Couldn't load the field notes right now. Flip again later." : "Sign in (Me tab) to unlock field notes: habitat, diet, seasons and more." };
+  }catch{ return { facts:null, note:"Couldn't load the field notes right now." }; }
+}
+function loadGuide(s){
+  if (guideCache.has(s.key)) return guideCache.get(s.key);
+  const p = (async () => {
+    const loc = state.loc, plant = s.group === "plants" || s.group === "trees", id = s.inatId;
+    const g = { tax:[], summary:"", status:"", months:null, where:"", flower:null, male:null, female:null, facts:null, note:"" };
+    const jobs = [loadFacts(s).then(x => { g.facts = x.facts; g.note = x.note || ""; })];
+    if (id){
+      jobs.push(getJSON(`${INAT}/taxa/${id}?locale=en`).then(r => {
+        const t = r.results?.[0]; if (!t) return;
+        const chain = [...(t.ancestors || []), t];
+        g.tax = ["kingdom","phylum","class","order","family","genus","species"].map(rk => chain.find(x => x.rank === rk)).filter(Boolean)
+          .map(x => ({ rank:x.rank, name:x.name, common:x.preferred_common_name || "" }));
+        g.summary = String(t.wikipedia_summary || "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().slice(0, 450);
+        const cs = t.conservation_status; if (cs?.status_name) g.status = cap(cs.status_name) + (cs.authority ? ` (${cs.authority})` : "");
+      }).catch(() => {}));
+      const hist = (extra, near) => getJSON(`${INAT}/observations/histogram?taxon_id=${id}&date_field=observed&interval=month_of_year&quality_grade=research&captive=false${near && loc ? `&lat=${loc.lat}&lng=${loc.lng}&radius=200` : ""}${extra}`).then(r => r.results?.month_of_year || null).catch(() => null);
+      jobs.push((async () => { let m = await hist("", true), where = `within ${fmtDist(200)} of here`; if (sum12(m) < 8){ m = await hist("", false); where = "worldwide"; } g.months = m; g.where = where; })());
+      if (plant) jobs.push((async () => { let m = await hist("&term_id=12&term_value_id=13", true); if (sum12(m) < 5) m = await hist("&term_id=12&term_value_id=13", false); g.flower = sum12(m) >= 3 ? m : null; })());
+      else {
+        const sexPhoto = v => getJSON(`${INAT}/observations?taxon_id=${id}&term_id=9&term_value_id=${v}&photos=true&quality_grade=research&captive=false&per_page=1&order_by=votes`).then(r => {
+          const o = r.results?.[0], ph = o?.photos?.[0]; return ph ? { url: ph.url.replace("square", "medium"), by: ph.attribution || "" } : null; }).catch(() => null);
+        jobs.push(sexPhoto(11).then(x => { g.male = x; }), sexPhoto(10).then(x => { g.female = x; }));
+      }
+    } else if (s.gbifKey){
+      jobs.push(getJSON(`${GBIF}/species/${s.gbifKey}`).then(r => { g.tax = ["kingdom","phylum","class","order","family","genus","species"].filter(k => r[k]).map(k => ({ rank:k, name:r[k], common:"" })); }).catch(() => {}));
+    }
+    await Promise.all(jobs);
+    return g;
+  })();
+  guideCache.set(s.key, p); return p;
+}
+const peakMonths = m => { const v = MONTHS.map((_, i) => +(m?.[i + 1] || 0)), mx = Math.max(...v); if (!mx) return ""; return MONTHS.filter((_, i) => v[i] >= mx * 0.6).join(", "); };
+const monthBars = (m, cls) => { const v = MONTHS.map((_, i) => +(m?.[i + 1] || 0)), mx = Math.max(1, ...v);
+  return `<div class="bars ${cls}" role="img" aria-label="Records by month, peak in ${peakMonths(m)}">${v.map((x, i) => `<span><i style="height:${Math.round(x / mx * 100)}%"></i><b>${MONTHS[i][0]}</b></span>`).join("")}</div>`; };
+function guideHTML(s, g){
+  const plant = s.group === "plants" || s.group === "trees", F = g.facts || {};
+  const rows = plant ? [["Habitat","habitat"],["How it grows","growth"],["Flowering & fruiting","season"],["Size","size"],["Lifespan","lifespan"],["Fun fact","fun_fact"]]
+                     : [["Habitat","habitat"],["Diet","diet"],["Breeding season","season"],["Size","size"],["Male vs female","sexes"],["Lifespan","lifespan"],["Fun fact","fun_fact"]];
+  const facts = rows.filter(([, k]) => F[k] && !/^not well known\.?$/i.test(F[k]));
+  return `<div class="ghead"><span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")} · Field guide</span><b class="gnm">${esc(s.name)}</b><i class="sci">${esc(s.sci)}</i></div>
+    ${F.caution ? `<div class="caution">Watch out: ${esc(F.caution)}</div>` : ""}
+    <div class="gsec"><div class="label">Taxonomy</div>${g.tax.length ? `<ol class="tax">${g.tax.map(t => `<li><span>${esc(cap(t.rank))}</span><b>${esc(t.name)}</b>${t.common && t.rank !== "species" ? `<small>${esc(cap(t.common))}</small>` : ""}</li>`).join("")}</ol>` : `<p class="hint">Couldn't load the taxonomy right now.</p>`}
+      ${g.status ? `<p class="tiny">Conservation status: ${esc(g.status)}</p>` : ""}</div>
+    <div class="gsec"><div class="label">Field notes</div>
+      ${facts.length ? `<dl class="facts">${facts.map(([l, k]) => `<div><dt>${l}</dt><dd>${esc(F[k])}</dd></div>`).join("")}</dl><p class="tiny">Field notes written by AI. Tap Learn more to check the details.</p>`
+        : `${g.summary ? `<p style="margin:0;font-size:14px">${esc(g.summary)}</p>` : ""}${g.note ? `<p class="hint">${esc(g.note)}</p>` : ""}`}</div>
+    <div class="gsec"><div class="label">When to look</div>
+      ${sum12(g.months) ? `${monthBars(g.months, "seen")}<p class="tiny">Sightings by month, ${esc(g.where)}. Most seen: ${peakMonths(g.months)}.</p>` : `<p class="hint">Not enough sightings yet to chart the seasons.</p>`}
+      ${g.flower ? `${monthBars(g.flower, "flower")}<p class="tiny">Records of it in flower, by month. Peak flowering: ${peakMonths(g.flower)}.</p>` : ""}</div>
+    ${plant ? "" : `<div class="gsec"><div class="label">Male &amp; female</div>
+      ${g.male || g.female ? `<div class="sexes">${[["Male", g.male], ["Female", g.female]].map(([l, x]) => `<figure>${x ? `<img src="${esc(x.url)}" alt="${l} ${esc(s.name)}" loading="lazy">` : `<div class="ph0"></div>`}<figcaption><b>${l}</b><small>${x ? esc(x.by) : "No tagged photo yet"}</small></figcaption></figure>`).join("")}</div>`
+        : `<p class="hint">No photos tagged male or female for this species yet.</p>`}</div>`}`;
 }
 function closeSheet(){ $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); sheetKey = null; }
 $("#scrim").addEventListener("click", closeSheet);
@@ -799,7 +946,7 @@ async function showOnMap(key){
     s.gbifKey ? getJSON(`${GBIF}/occurrence/search?geoDistance=${lat},${lng},${km}km&taxonKey=${s.gbifKey}&hasCoordinate=true&hasGeospatialIssue=false&limit=300`).then(r => r.results || []).catch(() => []) : []
   ]);
   for (const o of a){ if (o.obscured || !o.geojson?.coordinates) continue; const p = { lat:o.geojson.coordinates[1], lng:o.geojson.coordinates[0], name:s.name, sci:s.sci, img:o.photos?.[0]?.url?.replace("square","small"), date:o.observed_on, src:"iNaturalist", url:`https://www.inaturalist.org/observations/${o.id}` }; addPin(p, s.group, true); pts.push([p.lat, p.lng]); }
-  for (const r of b){ if (r.datasetKey === INAT_GBIF_DATASET || r.decimalLatitude == null) continue; const p = { lat:r.decimalLatitude, lng:r.decimalLongitude, name:s.name, sci:s.sci, date:String(r.eventDate || r.year || "").slice(0,10), src:r.datasetName || "GBIF", url:`https://www.gbif.org/occurrence/${r.key}` }; addPin(p, s.group, true); pts.push([p.lat, p.lng]); }
+  for (const r of b){ if (r.datasetKey === INAT_GBIF_DATASET || r.decimalLatitude == null || notWildRecord(r)) continue; const p = { lat:r.decimalLatitude, lng:r.decimalLongitude, name:s.name, sci:s.sci, date:String(r.eventDate || r.year || "").slice(0,10), src:r.datasetName || "GBIF", url:`https://www.gbif.org/occurrence/${r.key}` }; addPin(p, s.group, true); pts.push([p.lat, p.lng]); }
   if (pts.length){ map.fitBounds(pts, { padding:[40,40], maxZoom:17 }); toast(`${pts.length} sighting${pts.length === 1 ? "" : "s"} of ${esc(s.name)}`); }
   else toast(`No exact spots for ${esc(s.name)}. They may be hidden to protect it.`, 3500);
 }
@@ -821,10 +968,33 @@ function verdictBox(f){
   if (f.verdict === "unconfirmed") return `<div class="verdict unconfirmed">Sighting not confirmed${f.note ? `: ${esc(f.note)}` : ""}. A photo can still count it.</div>`;
   if (f.verdict === "yes") return `<div class="verdict yes">Verified by the species AI${f.note ? `: ${esc(f.note)}` : ""}</div>`;
   if (f.verdict === "unsure") return `<div class="verdict unsure">Half points. The AI wasn't sure${f.note ? `. It saw: ${esc(f.note)}` : ""}. Retake a clearer photo to try for full points.</div>`;
-  return `<div class="verdict no">No points for this photo${f.note ? `. The AI saw: ${esc(f.note)}` : ""}. Try another photo of the real thing.</div>`;
+  if (isNotWild(f.sci, f.name)) return `<div class="verdict no">${NOT_WILD_MSG}</div>`;
+  if (isSighting(f)) return `<div class="verdict no">No points for this sighting${f.note ? `: ${esc(f.note)}` : ""}.</div>`;
+  return `<div class="verdict no">No points for this photo${f.note ? `. ${/taken inside|already used/.test(f.note) ? "" : "The AI saw: "}${esc(f.note)}` : ""}. Try another photo of a wild one.</div>`;
 }
 async function saveRec(rec){ await idb.put(rec); dropURL(rec.id); state.finds.set(rec.key, rec); }
 function refreshAll(){ drawFinds(); renderGrid(); renderRanger(); if ($("#tab-journal").classList.contains("on")) renderJournal(); if (sheetKey && state.finds.has(sheetKey)) openSheet(sheetKey); }
+
+// Is this spot inside a zoo, aquarium, wildlife park, pet shop or shelter (or, for plants, a botanical garden or nursery)? Uses OpenStreetMap.
+async function captiveSpot(pos, group){
+  if (!pos) return null;
+  const plant = group === "plants" || group === "trees", P = `${pos.lat},${pos.lng}`;
+  const q = `[out:json][timeout:8];is_in(${P})->.a;(area.a[tourism~"^(zoo|aquarium)$"];area.a[zoo];area.a[attraction=animal];area.a[shop=pet];area.a[amenity~"^(animal_shelter|animal_boarding)$"];${plant ? `area.a[leisure=garden]["garden:type"=botanical];area.a[landuse=plant_nursery];area.a[shop=garden_centre];` : ""})->.inside;.inside out tags 3;(nwr(around:120,${P})[tourism~"^(zoo|aquarium)$"];nwr(around:60,${P})[shop=pet];nwr(around:60,${P})[amenity~"^(animal_shelter|animal_boarding)$"];);out tags 3;`;
+  for (const ep of ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]){
+    try{
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 9000);
+      const r = await fetch(ep, { method:"POST", body:"data=" + encodeURIComponent(q), headers:{ "Content-Type":"application/x-www-form-urlencoded" }, signal:ctl.signal });
+      clearTimeout(t); if (!r.ok) continue;
+      const hit = ((await r.json()).elements || []).find(e => e.tags); if (!hit) return null;
+      const tg = hit.tags;
+      const kind = tg.tourism === "aquarium" ? "an aquarium" : tg.shop === "pet" ? "a pet shop" : tg.amenity ? "an animal shelter" : tg.leisure === "garden" ? "a botanical garden"
+        : (tg.landuse === "plant_nursery" || tg.shop === "garden_centre") ? "a plant nursery" : (tg.zoo === "wildlife_park" || tg.zoo === "safari_park") ? "a wildlife park" : tg.zoo === "petting_zoo" ? "a petting zoo" : "a zoo";
+      return tg.name ? `${tg.name} (${kind})` : kind;
+    }catch{}
+  }
+  return null;
+}
+const captiveNote = (spot, group) => `taken inside ${spot}. Only wild ${group === "plants" || group === "trees" ? "plants" : "animals"} count`;
 
 function guestScore(s, pos, half){
   const r = rarityOf(s), base = half ? Math.round(r.pts / 2) : r.pts, parts = [`${r.label}${half ? " sighting" : ""} +${base}`]; let points = base;
@@ -873,6 +1043,7 @@ function verdictToast(rec, data){
   if (data.rescored === false) return toast(isSighting(rec) ? "Already on your list" : "Photo updated");
   if (data.kept) return toast(`<span class="xpg">0 XP</span><span>${data.note ? esc(data.note) + ". " : ""}That photo didn't match, but your sighting still counts.</span>`, 5500);
   if (data.verdict === "sighted") return toast(`<span class="xpg">+${data.points} XP</span><span>${n} sighting confirmed!<br><small style="font-weight:700;opacity:.8">${esc((data.parts || []).join(" · "))}</small></span>`, 4500);
+  if (data.verdict === "no" && isSighting(rec)) return toast(`<span class="xpg">0 XP</span><span>${esc(data.note || "Sighting not counted")}.</span>`, 5500);
   if (data.verdict === "unconfirmed") return toast(`<span class="xpg">0 XP</span><span>${esc(data.note || "No records nearby")}. Add a photo to count it.</span>`, 5500);
   const parts = (data.parts || []).length ? `<br><small style="font-weight:700;opacity:.8">${esc(data.parts.join(" · "))}</small>` : "";
   if (data.verdict === "yes") toast(`<span class="xpg">+${data.points} XP</span><span>${n} verified!${parts}</span>`, 4200);
@@ -909,6 +1080,9 @@ async function collectPhoto(key, file){
         await saveRec({ ...old, ...base, points:(old.points || 0) + extra, verdict:null }); refreshAll();
         toast(`<span class="xpg">+${extra} XP</span><span>${esc(s.name)} upgraded from sighting to photo!</span>`, 4200); celebrate(before); return;
       }
+      const spot = await captiveSpot(pos, s.group);
+      if (spot){ await saveRec({ ...base, rarity: rarityOf(s).id, points:0, verdict:"no", note:`This photo was ${captiveNote(spot, s.group)}` }); refreshAll();
+        return toast(`<span class="xpg">0 XP</span><span>This photo was ${esc(captiveNote(spot, s.group))}.</span>`, 5500); }
       const { points, parts } = guestScore(s, pos);
       await saveRec({ ...base, rarity: rarityOf(s).id, points, verdict: null }); refreshAll();
       toast(`<span class="xpg">+${points} XP</span><span>${esc(s.name)} collected!<br><small style="font-weight:700;opacity:.8">${esc(parts.join(" · "))}${state.sb ? " · Make an account to get it verified" : ""}</small></span>`, 4200);
@@ -950,7 +1124,11 @@ async function logSighting(key, userNote){
     } else {
       const known = !s.custom && s.count > 0;
       const near = state.loc && kmBetween(pos, state.loc) <= state.radiusKm + 2;
-      if (known && near){
+      const spot = await captiveSpot(pos, s.group);
+      if (spot){
+        Object.assign(rec, { verdict:"no", points:0, note:`This spot is inside ${spot}. Only wild ${s.group === "plants" || s.group === "trees" ? "plants" : "animals"} count` });
+        await saveRec(rec); refreshAll(); toast(`<span class="xpg">0 XP</span><span>${esc(rec.note)}.</span>`, 5500);
+      } else if (known && near){
         const { points, parts } = guestScore(s, pos, true);
         Object.assign(rec, { verdict:"sighted", points, note:`${s.count} record${s.count === 1 ? "" : "s"} near here` });
         await saveRec(rec); refreshAll();
@@ -1007,7 +1185,7 @@ async function runIdentify(){
     const p = pos || state.loc;
     const { data, error } = await state.sb.functions.invoke("verify-find", { body:{ mode:"identify", image: idState.blob ? await blobToB64(idState.blob) : "", media_type:"image/jpeg", description:desc, lat:p.lat, lng:p.lng, place:state.loc.label } });
     if (error){ let msg = "Couldn't identify it right now. Try again in a moment."; try{ const j = await error.context?.json?.(); if (j?.error) msg = j.error; }catch{} throw new Error(msg); }
-    const cands = data.candidates || [];
+    const cands = (data.candidates || []).filter(c => !isNotWild(c.sci, c.name));
     if (!cands.length){ out.innerHTML = `<div class="verdict">The AI couldn't tell what this is.${data.tip ? ` Tip: ${esc(data.tip)}` : ""}</div>`; return; }
     // Look each one up for a reference photo and how often it's been recorded nearby
     idState.results = await pool(cands, 3, async c => {
@@ -1031,6 +1209,7 @@ async function runIdentify(){
 async function pickIdentified(i){
   const c = idState.results[i]; if (!c?.t) return;
   const key = addCustom(c.t, GROUP_FROM_AI[c.group] || "other", true);
+  if (!key) return;
   renderGrid();
   const blob = idState.blob;
   idState.blob = null; idState.file = null; if (idState.url){ URL.revokeObjectURL(idState.url); idState.url = ""; }
@@ -1142,7 +1321,7 @@ async function loadSession(){
   if (user){ const { data:p } = await state.sb.from("profiles").select("username").eq("id", user.id).maybeSingle(); state.username = p?.username || null; }
   else state.username = null;
   state.owner = user ? user.id : "guest";
-  if (changed){ await loadFinds(); if (user) restoreCloud().then(retryPending).catch(() => {}); }
+  if (changed){ guideCache.clear(); await loadFinds(); if (user) restoreCloud().then(retryPending).catch(() => {}); }
   renderRanger(); if ($("#tab-me").classList.contains("on")) renderAccount();
 }
 // Bring this account's finds and photos onto this phone (new phone, or after switching accounts)

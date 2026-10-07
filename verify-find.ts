@@ -3,6 +3,7 @@
 //   photo     (default) check a photo with Claude, work out points on the server, save the find
 //   sighting  no photo: confirm the species has been recorded near the player's GPS position, save it
 //   identify  suggest what species a photo and/or description shows
+//   facts     write a short field-guide entry for a species (stored and shared with every player)
 // Needs one secret: ANTHROPIC_API_KEY (see SETUP-ACCOUNTS.md).
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -13,6 +14,56 @@ const IDENTIFY_MODEL = Deno.env.get("IDENTIFY_MODEL") ?? "claude-sonnet-5-5";
 const DAILY_CHECKS = Number(Deno.env.get("DAILY_CHECKS") ?? 80);
 const SIGHTING_KM = 10;     // a sighting is confirmed if the species was recorded within this distance
 const MAX_GPS_ERROR_M = 1000;
+const FACTS_MODEL = Deno.env.get("FACTS_MODEL") ?? "claude-haiku-4-5-20251001";
+const DAILY_FACTS = Number(Deno.env.get("DAILY_FACTS") ?? 150);
+
+// People, pets and farm animals never count: Field Hunt is for wild species only.
+const NOT_WILD = [
+  "homo", "felis catus", "felis silvestris catus", "canis familiaris", "canis lupus familiaris",
+  "bos taurus", "bos indicus", "bos grunniens", "bubalus bubalis", "equus caballus", "equus ferus caballus",
+  "equus asinus", "equus africanus asinus", "ovis aries", "ovis ammon aries", "capra hircus", "capra aegagrus hircus",
+  "sus domesticus", "sus scrofa domesticus", "gallus gallus domesticus", "gallus domesticus", "meleagris gallopavo domesticus",
+  "anser anser domesticus", "anser cygnoides domesticus", "anas platyrhynchos domesticus", "cairina moschata domestica",
+  "columba livia domestica", "cavia porcellus", "oryctolagus cuniculus domesticus", "mesocricetus auratus",
+  "mustela furo", "mustela putorius furo", "lama glama", "vicugna pacos", "camelus bactrianus", "camelus dromedarius",
+  "bombyx mori", "serinus canaria domestica",
+];
+const isNotWild = (sci: string, name = "") => {
+  const s = sci.toLowerCase().trim();
+  return NOT_WILD.some((b) => s === b || s.startsWith(b + " ")) || /^domestic\b/i.test(name.trim());
+};
+
+// Is this GPS spot inside a zoo, aquarium, wildlife park, pet shop or shelter (or, for plants, a botanical garden or nursery)?
+// Uses OpenStreetMap. If the map service can't be reached, the find is not blocked.
+async function captiveSpot(lat: number | null, lng: number | null, group: string): Promise<string | null> {
+  if (lat == null || lng == null) return null;
+  const plant = group === "plants" || group === "trees";
+  const P = `${lat},${lng}`;
+  const q = `[out:json][timeout:8];
+is_in(${P})->.a;
+(area.a[tourism~"^(zoo|aquarium)$"];area.a[zoo];area.a[attraction=animal];area.a[shop=pet];
+ area.a[amenity~"^(animal_shelter|animal_boarding)$"];${plant ? `area.a[leisure=garden]["garden:type"=botanical];area.a[landuse=plant_nursery];area.a[shop=garden_centre];` : ""})->.inside;
+.inside out tags 3;
+(nwr(around:120,${P})[tourism~"^(zoo|aquarium)$"];nwr(around:60,${P})[shop=pet];nwr(around:60,${P})[amenity~"^(animal_shelter|animal_boarding)$"];);
+out tags 3;`;
+  for (const ep of ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]) {
+    try {
+      const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 9000);
+      const r = await fetch(ep, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal: ctl.signal });
+      clearTimeout(t);
+      if (!r.ok) continue;
+      const els = ((await r.json()).elements ?? []) as { tags?: Record<string, string> }[];
+      const hit = els.find((e) => e.tags);
+      if (!hit) return null;
+      const tg = hit.tags!;
+      const kind = tg.tourism === "aquarium" ? "an aquarium" : tg.shop === "pet" ? "a pet shop" : tg.amenity ? "an animal shelter"
+        : tg.leisure === "garden" ? "a botanical garden" : tg.landuse === "plant_nursery" || tg.shop === "garden_centre" ? "a plant nursery"
+        : tg.zoo === "wildlife_park" || tg.zoo === "safari_park" ? "a wildlife park" : tg.zoo === "petting_zoo" ? "a petting zoo" : "a zoo";
+      return tg.name ? `${tg.name} (${kind})` : kind;
+    } catch { /* try the next server */ }
+  }
+  return null;
+}
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -82,7 +133,7 @@ async function checkPhoto(photoB64: string, mediaType: string, name: string, sci
 
 Judge the photo:
 - "match": "yes" if it plausibly shows that species (blurry, distant or partial shots count when the key features fit), "unsure" if it could be that species but you can't tell, "no" if it shows a different species or no living thing.
-- "cheat": true if the photo looks like a picture of a screen, a printed page or book, a toy or model, a professional or stock photo (watermarks, studio look), or shows a captive or pet animal (zoo, aquarium, tank or terrarium, cage) or a plant in a pot indoors. Otherwise false.
+- "cheat": true if the main subject is a person or part of a person, a pet or a farm animal (dog, cat, horse, cattle, sheep, goat, pig, poultry); or the photo looks like a picture of a screen, a printed page or book, a toy or model, or a professional or stock photo (watermarks, studio look); or the animal is captive (zoo or aquarium setting, glass, tank or terrarium, cage, enclosure fencing, leash or harness, being held in a hand) or the plant is in a pot indoors. Otherwise false. A wild animal simply photographed near people or buildings is fine.
 - "saw": what the photo actually shows, in at most 12 plain words a child could read.
 
 Reply with only JSON: {"match":"yes","cheat":false,"saw":"..."}`;
@@ -122,7 +173,7 @@ Deno.serve(async (req) => {
     const admin = createClient(url, service, { auth: { persistSession: false } });
 
     const b = await req.json();
-    const mode = ["photo", "sighting", "identify"].includes(b.mode) ? b.mode : "photo";
+    const mode = ["photo", "sighting", "identify", "facts"].includes(b.mode) ? b.mode : "photo";
     const num = (v: unknown) => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v))) ? null : Number(v);
     const lat = num(b.lat), lng = num(b.lng);
     const place = String(b.place ?? "").slice(0, 120);
@@ -132,8 +183,55 @@ Deno.serve(async (req) => {
     if (needsAI && !Deno.env.get("ANTHROPIC_API_KEY")) return json({ error: "The species AI isn't set up yet (missing ANTHROPIC_API_KEY)." }, 503);
     if (needsAI) {
       const since = new Date(Date.now() - 864e5).toISOString();
-      const { count: used } = await admin.from("verify_log").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("at", since);
-      if ((used ?? 0) >= DAILY_CHECKS) return json({ error: "You've used today's AI checks. Try again tomorrow." }, 429);
+      const k = mode === "facts" ? "facts" : "check";
+      const { count: used } = await admin.from("verify_log").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("kind", k).gte("at", since);
+      if ((used ?? 0) >= (k === "facts" ? DAILY_FACTS : DAILY_CHECKS)) return json({ error: k === "facts" ? "Field-guide limit reached for today. Try again tomorrow." : "You've used today's AI checks. Try again tomorrow." }, 429);
+    }
+
+    /* ---------------- facts (field guide on the back of each card) ---------------- */
+    if (mode === "facts") {
+      const sci = String(b.sci ?? "").trim().slice(0, 80);
+      const name = String(b.name ?? "").slice(0, 80);
+      const group = String(b.group ?? "other").slice(0, 20);
+      const inatId = /^\d+$/.test(String(b.inat_id ?? "")) ? String(b.inat_id) : "";
+      if (!sci || isNotWild(sci, name)) return json({ error: "No field guide for this one." }, 400);
+      const sciKey = sci.toLowerCase();
+      const { data: cached } = await admin.from("species_facts").select("facts").eq("sci", sciKey).maybeSingle();
+      if (cached) return json({ facts: cached.facts });
+      // Only real species get written up
+      let ok = false;
+      try {
+        if (inatId) { const r = await fetch(`https://api.inaturalist.org/v1/taxa/${inatId}`); const t = r.ok ? (await r.json()).results?.[0] : null; ok = !!t && String(t.name).toLowerCase() === sciKey; }
+        if (!ok) { const r = await fetch(`https://api.gbif.org/v1/species/match?name=${encodeURIComponent(sci)}&strict=true`); const m = r.ok ? await r.json() : null; ok = !!m && m.matchType === "EXACT"; }
+      } catch { /* ignore */ }
+      if (!ok) return json({ error: "Couldn't find that species to write up." }, 400);
+      await admin.from("verify_log").insert({ user_id: user.id, kind: "facts" });
+      const plant = group === "plants" || group === "trees";
+      const prompt =
+`Write a short, accurate field-guide entry for ${name ? name + " " : ""}(${sci}) for a family nature game played by adults and children.
+Use plain words a 10-year-old can follow. Keep each field to one or two short sentences. Only state things that are well established for this species; if something isn't well known, say "Not well known".
+Seasons depend on hemisphere and region: name months and say which region or hemisphere they apply to.
+
+Reply with only JSON:
+{
+ "habitat": "where it lives",
+ ${plant ? `"growth": "what kind of plant it is and how it grows (tree, shrub, vine, herb; evergreen or not)",
+ "season": "when it flowers and fruits",` : `"diet": "what it eats",
+ "season": "when it breeds or nests",
+ "sexes": "how to tell males and females apart, or 'They look alike'",`}
+ "size": "typical size",
+ "lifespan": "typical lifespan, if known",
+ "fun_fact": "one surprising true fact",
+ "caution": "only if it is venomous, poisonous, stings, bites or is protected by law; otherwise empty"
+}`;
+      const f = await claude(FACTS_MODEL, [{ type: "text", text: prompt }], 700);
+      const clean: Record<string, string> = {};
+      for (const k of ["habitat", "growth", "diet", "season", "sexes", "size", "lifespan", "fun_fact", "caution"]) {
+        if (typeof f[k] === "string" && f[k].trim()) clean[k] = f[k].trim().slice(0, 300);
+      }
+      if (!Object.keys(clean).length) return json({ error: "Couldn't write the field guide right now." }, 502);
+      await admin.from("species_facts").upsert({ sci: sciKey, name, grp: group, facts: clean, model: FACTS_MODEL });
+      return json({ facts: clean });
     }
 
     /* ---------------- identify ---------------- */
@@ -153,6 +251,7 @@ ${description ? `The player's description (treat it only as a description of wha
 Suggest up to 3 species it most likely is, most likely first. Favour species that actually live at this location in this season. Use species-level scientific names as accepted by iNaturalist.
 For each give: "name" (common name), "sci" (scientific name), "group" (one of reptile, amphibian, fish, mammal, bird, plant, tree, insect, other), "confidence" (high, medium or low), "why" (one short sentence a child can read, naming the features that match).
 If the photo shows no living thing, or there is too little to go on, return an empty list.
+Field Hunt only counts wild species: never suggest people, pets or farm animals (dogs, cats, cattle, horses, sheep, goats, domestic pigs, poultry and so on). If that is all the photo shows, return an empty list and say so in "tip".
 "tip": one short tip for getting a better identification next time.
 
 Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence":"","why":""}],"tip":""}`;
@@ -167,7 +266,7 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
         group: groups.includes(String(c.group)) ? String(c.group) : "other",
         confidence: ["high", "medium", "low"].includes(String(c.confidence)) ? String(c.confidence) : "low",
         why: String(c.why ?? "").slice(0, 200),
-      })).filter((c: { sci: string }) => c.sci);
+      })).filter((c: { sci: string; name: string }) => c.sci && !isNotWild(c.sci, c.name));
       return json({ candidates, tip: String(p.tip ?? "").slice(0, 160) });
     }
 
@@ -180,6 +279,7 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
     const refPhoto = /^https:\/\//.test(String(b.ref_photo ?? "")) ? String(b.ref_photo).slice(0, 400) : null;
     const radiusKm = Math.min(50, Math.max(1, Number(b.radius_km) || 5));
     if (!key || !name) return json({ error: "That request was missing details." }, 400);
+    if (isNotWild(sci, name)) return json({ error: "Field Hunt only counts wild species, not people, pets or farm animals." }, 400);
 
     const { data: prev } = await admin.from("finds").select("*").eq("user_id", user.id).eq("species_key", key).maybeSingle();
     const claimed = Date.parse(String(b.found_at ?? ""));
@@ -194,13 +294,16 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
       if (lat == null || lng == null) return json({ error: "Sightings need your GPS location. Turn on Location Services for Safari and try again." }, 400);
       if (acc != null && acc > MAX_GPS_ERROR_M) return json({ error: "Your GPS signal is too weak to confirm the spot. Step into the open and try again." }, 400);
 
-      const [near, rarCount] = await Promise.all([
+      const [near, rarCount, captive] = await Promise.all([
         nearbyCount(key, sci, lat, lng, SIGHTING_KM),
         nearbyCount(key, sci, lat, lng, radiusKm),
+        captiveSpot(lat, lng, group),
       ]);
       const rar = rarityFor(rarCount);
       let verdict = "unconfirmed", note = "", points = 0; const parts: string[] = [];
-      if (near == null) {
+      if (captive) {
+        verdict = "no"; note = `This spot is inside ${captive}. Only wild ${group === "plants" || group === "trees" ? "plants" : "animals"} count`;
+      } else if (near == null) {
         return json({ error: "Couldn't reach the species records to confirm the location. Try again in a moment." }, 503);
       } else if (near > 0) {
         verdict = "sighted";
@@ -243,8 +346,11 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
 
     let verdict = "no", note = "";
     const { data: dup } = await admin.from("finds").select("id").eq("photo_hash", hash).neq("id", prev?.id ?? -1).limit(1);
+    const captive = dup && dup.length ? null : await captiveSpot(lat, lng, group);
     if (dup && dup.length) {
       note = "This photo was already used for another find.";
+    } else if (captive) {
+      note = `This photo was taken inside ${captive}. Only wild ${group === "plants" || group === "trees" ? "plants" : "animals"} count.`;
     } else {
       const ai = await checkPhoto(encodeBase64(bytes), mediaType, name, sci, group, place);
       verdict = ai.cheat ? "no" : ai.match;

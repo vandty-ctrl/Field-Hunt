@@ -1,6 +1,6 @@
 // Field Hunt service worker: caches the app shell so it opens offline.
 // Species data and map tiles always come from the network.
-const CACHE = "field-hunt-v5";
+const CACHE = "field-hunt-v6";
 const SHELL = [
   "./",
   "./index.html",

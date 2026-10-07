@@ -96,3 +96,24 @@ create policy "upload own photos" on storage.objects for insert to authenticated
 drop policy if exists "delete own photos" on storage.objects;
 create policy "delete own photos" on storage.objects for delete to authenticated
   using (bucket_id = 'photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------- v6: field guides, wild-only rules ----------
+-- Separate daily limits for AI photo checks and field-guide write-ups
+alter table public.verify_log add column if not exists kind text default 'check';
+
+-- Field-guide facts on the back of each card: written once per species, readable by everyone
+create table if not exists public.species_facts (
+  sci text primary key,            -- scientific name, lower case
+  name text,
+  grp text,
+  facts jsonb not null,
+  model text,
+  created_at timestamptz not null default now()
+);
+alter table public.species_facts enable row level security;
+drop policy if exists "facts are public" on public.species_facts;
+create policy "facts are public" on public.species_facts for select using (true);
+
+-- Field Hunt is wild-only: take points away from any people, pets or farm animals already logged
+update public.finds set points = 0, verdict = 'no', ai_note = 'Field Hunt only counts wild species'
+where lower(coalesce(sci, '')) ~ '^(homo( |$)|felis catus|felis silvestris catus|canis familiaris|canis lupus familiaris|bos taurus|bos indicus|bos grunniens|bubalus bubalis|equus caballus|equus ferus caballus|equus asinus|equus africanus asinus|ovis aries|ovis ammon aries|capra hircus|capra aegagrus hircus|sus domesticus|sus scrofa domesticus|gallus gallus domesticus|gallus domesticus|meleagris gallopavo domesticus|anser anser domesticus|anser cygnoides domesticus|anas platyrhynchos domesticus|cairina moschata domestica|columba livia domestica|cavia porcellus|oryctolagus cuniculus domesticus|mesocricetus auratus|mustela furo|mustela putorius furo|lama glama|vicugna pacos|camelus bactrianus|camelus dromedarius|bombyx mori|serinus canaria domestica)';

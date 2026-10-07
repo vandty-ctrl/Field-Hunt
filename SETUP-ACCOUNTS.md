@@ -1,7 +1,7 @@
 # Turn on accounts, leaderboards and photo checking
 
 > **Already set up from an earlier version?** You only need to do two things:
-> 1. Run the new `setup.sql` again (step 3). It adds the columns for sightings and leaves your data alone.
+> 1. Run the new `setup.sql` again (step 3). It adds what's new (sightings, the shared field-guide table) and takes points away from any people, pets or farm animals already logged. Everything else is left alone.
 > 2. Replace the code in your `verify-find` function with the new `verify-find.ts` and click **Deploy** again (step 8).
 
 Field Hunt works without this, with points and badges saved on each phone. Setting this up once gives you:
@@ -10,6 +10,8 @@ Field Hunt works without this, with points and badges saved on each phone. Setti
 - **AI photo checking**: Claude looks at every photo to confirm it shows the species claimed. Unsure photos earn half points, and wrong or faked photos earn none.
 - **Sightings without a photo**, confirmed on the server against species records near the player's GPS position (half points)
 - **Identify**: the species AI suggests what a photo or description shows
+- **Field notes on every card**: habitat, diet, seasons and more, written once per species by the AI and shared with every player
+- **Zoo and captive check**: every photo and sighting location is checked against OpenStreetMap for zoos, aquariums, wildlife parks, pet shops and shelters (no setup needed)
 
 You'll use two free sign-ups: **Supabase** (stores accounts, scores and photos) and **Anthropic** (the photo checker, which costs a small amount per photo). Allow about 20 minutes. Menu names can move around a little; if a button isn't exactly where described, look for one with a similar name.
 
@@ -94,5 +96,6 @@ Accounts use only a username and password. No email is collected, which keeps ki
 - **No password reset** is possible, because no email is collected. Players should write their passwords down.
 - **Kids under 13:** a parent should create the account and choose a username that isn't the child's real name.
 - **Which AI model:** Photo checks use a fast, low-cost Claude model. Identify uses a stronger one for better identifications, and each identify costs roughly a cent or two. To change either, add a secret named `VISION_MODEL` or `IDENTIFY_MODEL` in Edge Functions > Secrets with the model name from console.anthropic.com. If Identify ever reports an AI error, that model name is the first thing to check.
+- **Field notes** use the low-cost model and are written only once per species, the first time a signed-in player flips that card. After that every player, including guests, reads the saved copy for free. Each player can trigger at most 150 new write-ups a day.
 - **Sightings** don't use the AI, so they're free. They're confirmed only by real GPS position: the player must be within 10 km of existing records of that species.
 - **Costs:** Supabase's free tier covers a small community. The Anthropic bill depends on how many photos are checked; your spend limit caps it.

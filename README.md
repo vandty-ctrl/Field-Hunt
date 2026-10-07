@@ -28,7 +28,8 @@ Open your GitHub Pages link in **Safari**, tap **Share â†’ Add to Home Screen â†
 ## How to play
 - **Hunt:** Tap **Near me** or type any park or place in the world. Tick what to hunt for (reptiles, amphibians, fish, mammals, birds, plants, trees), choose a distance in km or miles, and tap **Start the hunt**.
 - **Field cards:** Each species is a card rated Common, Uncommon, Rare, Epic or Legendary, based on how rarely it's been recorded nearby. Rarer cards are worth more XP.
-- **Collect:** Tap a card, then **I found it! Take a photo**. Bonus XP for your first find of the day and for exploring a new area.
+- **Flip cards:** Tap any card, found or not, and it flips over to its field guide: taxonomy from kingdom to species, field notes (habitat, diet or growth, breeding or flowering season, size, male vs female, lifespan, a fun fact, and safety warnings), a "when to look" chart of sightings by month near you (plus flowering months for plants), and example photos of males and females. Tap the card again to flip back.
+- **Collect:** On the card, tap **I found it! Take a photo**. Bonus XP for your first find of the day and for exploring a new area.
 - **Saw it, but no photo:** Too fast to photograph? Tap a card, then **Saw it, but no photo**. Your phone's GPS position is checked against iNaturalist and GBIF records within 10 km. A confirmed sighting earns half points. Add a photo later to upgrade it to full points. Sightings show on the map as yellow rings.
 - **Identify something:** Don't know what it is? Tap **Identify something**, then snap or choose a photo, or describe it. The species AI suggests the likeliest matches for where you are, with reference photos. Tap **This is it** to add it to your cards and collect it. (Needs an account.)
 - **Add a species:** Know something lives there that isn't listed? Tap **+ Add a species you know is here**.
@@ -36,6 +37,12 @@ Open your GitHub Pages link in **Safari**, tap **Share â†’ Add to Home Screen â†
 - **Journal:** Your stats, 16 badges, and all your photos.
 - **Ranks:** Weekly and all-time leaderboards (needs accounts switched on).
 - **Me:** Create an account or sign in, and switch between km and miles.
+
+## Wild species only
+- People, pets and farm animals (cats, dogs, cattle, horses, sheep, goats, domestic pigs, poultry and so on) never appear and can't be collected.
+- Records from zoos, botanical-garden collections and farms are left out of the species lists.
+- Every photo and sighting is checked against OpenStreetMap: if you're inside a zoo, aquarium, wildlife park, petting farm, pet shop or animal shelter (or, for plants, a botanical garden or nursery), it scores 0.
+- The photo checker also rejects pets, people, cages, tanks, enclosures and animals being held.
 
 ## Where the species come from
 - **iNaturalist:** community sightings confirmed by other naturalists.
