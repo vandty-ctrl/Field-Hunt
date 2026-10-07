@@ -216,6 +216,11 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .toolrow .btn{white-space:normal;line-height:1.2}
 .toolrow.one{grid-template-columns:1fr}
 .vchip.located{background:var(--r-uncommon)} .verdict.located{border-color:var(--r-uncommon)}
+.vchip.pinned{background:#2f78c4} .verdict.pinned{border-color:#2f78c4}
+.galpanel .galtop{display:flex;gap:10px;align-items:center} .galpanel .galtop img{width:72px;height:72px;object-fit:cover;border-radius:10px;flex:none}
+.galmap{height:220px;border-radius:12px;border:1px solid var(--line);overflow:hidden}
+.galpanel input[type=date]{width:100%;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px;font:inherit}
+.galsrc{font-size:13px;border-radius:10px;padding:8px 10px;background:var(--card);border:1px solid var(--line)} .galsrc a{color:inherit;font-weight:700} .galsrc.ok{border-color:var(--r-uncommon)} .galsrc.pin{border-color:#2f78c4}
 .sightpanel{display:flex;flex-direction:column;gap:8px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px}
 .sightpanel textarea,.idpanel textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px;font:inherit;resize:vertical;min-height:64px}
 .idpanel{display:flex;flex-direction:column;gap:10px}
@@ -498,6 +503,7 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
 <input type="file" id="idfile" accept="image/*" hidden>
+<input type="file" id="gal" accept="image/*" hidden>
 
 <script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -646,7 +652,8 @@ const dropURL = id => { const k = String(id); if (urls.has(k)){ URL.revokeObject
 const isGot = f => !!f && f.verdict !== "no" && f.verdict !== "unconfirmed" && !isNotWild(f.sci, f.name);
 const thumbURL = f => findURL(f) || f?.refPhoto || "";
 const isSighting = f => !!f && f.kind === "sighting" && !f.photo;
-const VERDICT = { yes:"Verified", unsure:"Half points", no:"No match", pending:"Checking…", sighted:"Sighted", unconfirmed:"Unconfirmed", located:"Location-checked" };
+const VERDICT = { yes:"Verified", unsure:"Half points", no:"No match", pending:"Checking…", sighted:"Sighted", unconfirmed:"Unconfirmed", located:"Location-checked", pinned:"Pinned photo" };
+const GALLERY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>';
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
 
 /* ---------- toasts & status ---------- */
@@ -1144,7 +1151,8 @@ function openSheet(key, fromGrid){
       <div id="sightRow"></div>
       <div class="acts" id="sheetActs">
         ${s.danger ? `<div class="safenote">${WARN}<span>${s.danger.dist ? `Stay ${fmtKeep(s.danger.dist)} back and use your camera's zoom.` : "Look, don't touch. Use your camera's zoom."}${s.danger.level >= 2 ? " Logging a sighting is fine too." : ""}</span></div>` : ""}
-        <button class="btn big sun" id="shootBtn" type="button" style="grid-column:1/-1">${isSighting(f) ? "Add a photo for full points" : f ? "Retake photo" : f0?.verdict === "no" ? "Try another photo" : "I found it! Take a photo"}</button>
+        <button class="btn big sun" id="shootBtn" type="button" style="grid-column:1/-1">${isSighting(f) ? "Add a photo for full points" : (f?.verdict === "pinned" || (f && !f.verdict && f.locSource === "pin")) ? "Retake with camera for full points" : f ? "Retake photo" : f0?.verdict === "no" ? "Try another photo" : "I found it! Take a photo"}</button>
+        <button class="btn soft" id="galBtn" type="button" style="grid-column:1/-1">${GALLERY}Use a photo from my gallery</button>
         ${!f ? `<button class="btn soft" id="sightBtn" type="button" style="grid-column:1/-1">${EYE}Saw it, but no photo</button>` : ""}
         <button class="btn soft" id="mapBtn" type="button">Show on map</button>
         <a class="btn soft" href="${esc(more)}" target="_blank" rel="noopener">Learn more ↗</a>
@@ -1167,6 +1175,7 @@ function openSheet(key, fromGrid){
       if (band) band.outerHTML = fresh; else $(".fbody")?.insertAdjacentHTML("afterbegin", fresh); }
   });
   $("#shootBtn").onclick = () => { state.pending = key; $("#cam").value = ""; $("#cam").click(); };
+  $("#galBtn").onclick = () => { state.pendingGal = key; $("#gal").value = ""; $("#gal").click(); };
   $("#sightBtn")?.addEventListener("click", () => openSightPanel(key));
   $("#mapBtn").onclick = () => { closeSheet(); showOnMap(key); };
   if (s.custom) $("#unaddBtn").onclick = () => removeCustom(key);
@@ -1392,6 +1401,7 @@ function verdictBox(f){
   if (!f || !f.verdict) return f ? `<div class="verdict">Guest find, not checked yet. Make an account and it gets checked by the species AI.</div>` : "";
   if (f.verdict === "pending") return `<div class="verdict">Your ${isSighting(f) ? "sighting" : "photo"} is waiting to be checked. It will be checked next time you have signal.</div>`;
   if (f.verdict === "sighted") return `<div class="verdict sighted">Sighting confirmed by location${f.note ? `: ${esc(f.note)}` : ""}. Add a photo for full points.</div>`;
+  if (f.verdict === "pinned") return `<div class="verdict pinned">Half points: photo from your gallery, checked at the spot you pinned${f.note ? ` (${esc(f.note.replace(/^Pinned:\s*/, ""))})` : ""}. Take one with the camera here, or pick a photo that has its location saved, for full points.</div>`;
   if (f.verdict === "located") return `<div class="verdict located">Checked by location${f.note ? `: ${esc(f.note.replace(/^Location-checked:\s*/, ""))}` : ""}.</div>`;
   if (f.verdict === "unconfirmed") return isSighting(f) ? `<div class="verdict unconfirmed">Sighting not confirmed${f.note ? `: ${esc(f.note)}` : ""}. A photo can still count it.</div>`
     : `<div class="verdict unconfirmed">Photo not counted${f.note ? `: ${esc(f.note)}` : ""}.</div>`;
@@ -1425,10 +1435,10 @@ async function captiveSpot(pos, group){
 }
 const captiveNote = (spot, group) => `taken inside ${spot}. Only wild ${wildWord(group)} count`;
 
-function guestScore(s, pos, half){
-  const r = rarityOf(s), base = half ? Math.round(r.pts / 2) : r.pts, parts = [`${r.label}${half ? " sighting" : ""} +${base}`]; let points = base;
+function guestScore(s, pos, half, opt = {}){
+  const r = rarityOf(s), base = half ? Math.round(r.pts / 2) : r.pts, parts = [`${r.label}${half ? (opt.label || " sighting") : ""} +${base}`]; let points = base;
   const all = [...state.finds.values()].filter(isGot);
-  if (!all.some(f => dayKey(f.at) === dayKey(Date.now()))){ points += 10; parts.push("First find today +10"); }
+  if (opt.daily !== false && !all.some(f => dayKey(f.at) === dayKey(Date.now()))){ points += 10; parts.push("First find today +10"); }
   const p = pos || state.loc;
   if (p && all.length && !all.some(f => f.lat != null && kmBetween(f, p) < 10)){ points += 20; parts.push("New area +20"); }
   return { points, parts };
@@ -1449,14 +1459,16 @@ async function verifyRec(rec){
     }
     const { data, error } = await state.sb.functions.invoke("verify-find", { body: sighting
       ? { ...common, mode:"sighting", acc:rec.acc ?? null, user_note:rec.userNote || "" }
-      : { ...common, mode:"photo", photo_path:path } });
+      : { ...common, mode:"photo", photo_path:path, loc_source:rec.locSource || "camera" } });
     if (error){
       let msg = "Couldn't check it right now. It will be checked later.";
       try{ const j = await error.context?.json?.(); if (j?.error) msg = j.error; }catch{}
       if (path) state.sb.storage.from("photos").remove([path]).catch(() => {});
       return { ok:false, error:msg };
     }
-    if (data.kept){
+    if (data.kept === "pinned"){
+      Object.assign(rec, { verdict:"pinned", note:data.note || "", points:data.points, rarity:data.rarity, photo_path:data.photo_path, kind:"photo", locSource:"pin" });
+    } else if (data.kept){
       Object.assign(rec, { verdict:data.kept, kind:"sighting", photo:null, photo_path:null, points:data.points, rarity:data.rarity });
     } else {
       Object.assign(rec, { verdict:data.verdict, note:data.note || "", points:data.points, rarity:data.rarity });
@@ -1471,7 +1483,9 @@ function verdictToast(rec, data){
   const n = esc(rec.name);
   const parts = (data.parts || []).length ? `<br><small style="font-weight:700;opacity:.8">${esc(data.parts.join(" · "))}</small>` : "";
   if (data.rescored === false) return toast(isSighting(rec) ? "Already on your list" : "Photo updated");
-  if (data.kept) return toast(`<span class="xpg">0 XP</span><span>${data.note ? esc(data.note) + ". " : ""}That photo couldn't be counted, but your sighting still counts.</span>`, 5500);
+  if (data.kept === "sighted") return toast(`<span class="xpg">0 XP</span><span>${data.note ? esc(data.note) + ". " : ""}That photo couldn't be counted, but your sighting still counts.</span>`, 5500);
+  if (data.kept === "pinned") return toast(`<span class="xpg">0 XP</span><span>${data.note ? esc(data.note) + ". " : ""}That photo couldn't be counted, so your pinned photo stays.</span>`, 5500);
+  if (data.verdict === "pinned") return toast(`<span class="xpg">+${data.points} XP</span><span>${n} collected! Half points for a pinned gallery photo.${parts}</span>`, 5000);
   if (data.verdict === "located") return toast(`<span class="xpg">+${data.points} XP</span><span>${n} collected! Checked by location.${parts}</span>`, 4500);
   if (data.verdict === "unconfirmed" && !isSighting(rec)) return toast(`<span class="xpg">0 XP</span><span>${esc(data.note || "No records nearby")}. It can't be counted here yet.</span>`, 5500);
   if (data.verdict === "sighted") return toast(`<span class="xpg">+${data.points} XP</span><span>${n} sighting confirmed!<br><small style="font-weight:700;opacity:.8">${esc((data.parts || []).join(" · "))}</small></span>`, 4500);
@@ -1484,13 +1498,119 @@ function verdictToast(rec, data){
 
 $("#cam").addEventListener("change", () => { const file = $("#cam").files?.[0]; const key = state.pending; state.pending = null; if (file && key) collectPhoto(key, file); });
 
-async function collectPhoto(key, file){
+/* ---------- photos from the gallery ---------- */
+// Reads the date and GPS position saved inside a JPEG photo (EXIF). Returns {} if there's nothing.
+async function readExif(file){
+  try{
+    const v = new DataView(await file.slice(0, 512 * 1024).arrayBuffer());
+    if (v.getUint16(0) !== 0xFFD8) return {};
+    let o = 2;
+    while (o + 10 < v.byteLength){
+      const m = v.getUint16(o); if ((m & 0xFF00) !== 0xFF00) return {};
+      if (m === 0xFFE1 && v.getUint32(o + 4) === 0x45786966) return parseTiff(v, o + 10);
+      if (m === 0xFFDA) return {};
+      o += 2 + v.getUint16(o + 2);
+    }
+  }catch{}
+  return {};
+}
+function parseTiff(v, t){
+  const le = v.getUint16(t) === 0x4949, u16 = p => v.getUint16(p, le), u32 = p => v.getUint32(p, le);
+  const ifd = p => { const n = u16(p), out = {}; for (let i = 0; i < n; i++){ const e = p + 2 + i * 12; out[u16(e)] = { type:u16(e + 2), count:u32(e + 4), at:e + 8 }; } return out; };
+  const SZ = { 1:1, 2:1, 3:2, 4:4, 5:8, 7:1, 9:4, 10:8 };
+  const val = en => {
+    const p = (SZ[en.type] || 1) * en.count > 4 ? t + u32(en.at) : en.at;
+    if (en.type === 2){ let x = ""; for (let i = 0; i < en.count; i++){ const c = v.getUint8(p + i); if (!c) break; x += String.fromCharCode(c); } return x; }
+    const a = [];
+    for (let i = 0; i < Math.min(en.count, 8); i++){
+      if (en.type === 3) a.push(u16(p + i * 2)); else if (en.type === 4) a.push(u32(p + i * 4));
+      else if (en.type === 5) a.push(u32(p + i * 8) / u32(p + i * 8 + 4)); else if (en.type === 10) a.push(v.getInt32(p + i * 8, le) / v.getInt32(p + i * 8 + 4, le));
+      else a.push(v.getUint8(p + i));
+    }
+    return a;
+  };
+  const out = {}, ifd0 = ifd(t + u32(t + 4));
+  try{ if (ifd0[0x010F]) out.make = val(ifd0[0x010F]); }catch{}
+  try{ if (ifd0[0x8769]){ const ex = ifd(t + val(ifd0[0x8769])[0]); const d = ex[0x9003] || ex[0x9004]; if (d) out.date = val(d); } }catch{}
+  try{ if (!out.date && ifd0[0x0132]) out.date = val(ifd0[0x0132]); }catch{}
+  try{
+    if (ifd0[0x8825]){
+      const g = ifd(t + val(ifd0[0x8825])[0]); const dms = a => a[0] + (a[1] || 0) / 60 + (a[2] || 0) / 3600;
+      if (g[2] && g[4]){
+        let lat = dms(val(g[2])), lng = dms(val(g[4]));
+        if (g[1] && /S/i.test(val(g[1]))) lat = -lat; if (g[3] && /W/i.test(val(g[3]))) lng = -lng;
+        if (isFinite(lat) && isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && !(lat === 0 && lng === 0)) out.gps = { lat, lng };
+      }
+    }
+  }catch{}
+  if (out.date){ const m = String(out.date).match(/^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d)/); const d = m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null; out.at = d && !isNaN(d) ? d : null; }
+  return out;
+}
+
+$("#gal").addEventListener("change", async () => {
+  const file = $("#gal").files?.[0]; const key = state.pendingGal; state.pendingGal = null;
+  if (!file || !key || sheetKey !== key) return;
+  openGalleryPanel(key, file, await readExif(file));
+});
+
+let galMap = null;
+function openGalleryPanel(key, file, ex){
+  const s = state.species.find(x => x.key === key); if (!s) return;
+  const now = Date.now();
+  const at = ex.at && ex.at.getTime() <= now + 864e5 ? ex.at : null;
+  let source = ex.gps ? "exif" : "pin";
+  const start = ex.gps || (state.loc ? { lat:state.loc.lat, lng:state.loc.lng } : null);
+  const thumb = URL.createObjectURL(file);
+  const today = new Date(now - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  $("#sheetActs").classList.add("hidden");
+  $("#sightRow").innerHTML = `<div class="sightpanel galpanel">
+      <div class="galtop"><img src="${thumb}" alt="Your chosen photo"><div><b>${esc(s.name)} from your gallery</b><br><span class="hint">${at ? `Taken ${esc(at.toLocaleDateString())}` : "No date saved in this photo"}</span></div></div>
+      <div class="galsrc" id="galSrc"></div>
+      <div class="galmap" id="galMap"></div>
+      ${at ? "" : `<label class="label" for="galDate">When did you take it?</label><input type="date" id="galDate" value="${today}" max="${today}">`}
+      <div class="acts"><button class="btn sun" id="galGo" type="button" ${start ? "" : "disabled"}>Check this photo</button><button class="btn soft" id="galCancel" type="button">Cancel</button></div>
+    </div>`;
+  const srcBox = () => {
+    $("#galSrc").className = "galsrc " + (source === "exif" ? "ok" : "pin");
+    $("#galSrc").innerHTML = source === "exif"
+      ? `<b>Location read from the photo.</b> It's checked against records of ${esc(s.name)} near that spot for full points. <a href="#" id="galMove">Wrong spot? Move the pin</a>`
+      : `<b>${ex.gps ? "Pin moved by hand." : "This photo doesn't have its location saved."}</b> Tap the map where you took it. Pinned photos earn <b>half points</b>, because the spot can't be proven.${ex.gps ? "" : " (iPhones often strip the location out of photos shared with websites.) For full points, take the photo with the camera here instead."}`;
+    const mv = $("#galMove"); if (mv) mv.onclick = e => { e.preventDefault(); source = "pin"; marker?.dragging.enable(); srcBox(); };
+  };
+  srcBox();
+  if (galMap){ galMap.remove(); galMap = null; }
+  galMap = L.map("galMap", { zoomControl:true }).setView(start ? [start.lat, start.lng] : [20, 0], start ? 15 : 2);
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom:19, maxNativeZoom:18, attribution:"Imagery &copy; Esri, Maxar, Earthstar Geographics" }).addTo(galMap);
+  let marker = start ? L.marker([start.lat, start.lng], { draggable: source === "pin" }).addTo(galMap) : null;
+  galMap.on("click", e => {
+    if (source === "exif") return;
+    if (marker) marker.setLatLng(e.latlng); else marker = L.marker(e.latlng, { draggable:true }).addTo(galMap);
+    $("#galGo").disabled = false;
+  });
+  setTimeout(() => { galMap?.invalidateSize(); $("#sightRow")?.scrollIntoView({ behavior:"smooth", block:"start" }); }, 250);
+  const close = () => { URL.revokeObjectURL(thumb); if (galMap){ galMap.remove(); galMap = null; } };
+  $("#galCancel").onclick = () => { close(); openSheet(key); };
+  $("#galGo").onclick = async () => {
+    if (!marker) return;
+    const ll = marker.getLatLng();
+    let when = at;
+    if (!when){ const d = $("#galDate")?.value; when = d ? new Date(d + "T12:00:00") : new Date(); if (when.getTime() > now) when = new Date(); }
+    $("#galGo").disabled = true; $("#galGo").textContent = "Checking…";
+    close(); openSheet(key);
+    await collectPhoto(key, file, { lat:ll.lat, lng:ll.lng, at:when.toISOString(), source });
+  };
+}
+
+// opts (gallery photos): { lat, lng, at, source: "exif" (location saved in the photo) or "pin" (placed by hand) }
+async function collectPhoto(key, file, opts){
   const s = state.species.find(x => x.key === key); if (!file || !s) return;
   const before = snapshot();
-  const [photo, pos] = await Promise.all([shrink(file), herePos()]);
+  const [photo, pos] = await Promise.all([shrink(file), opts ? Promise.resolve({ lat:opts.lat, lng:opts.lng, acc:null }) : herePos()]);
   const old = state.finds.get(key);
+  const src = opts?.source || "camera", pinned = src === "pin";
+  const oldPinned = old?.verdict === "pinned" || (old && !old.verdict && old.locSource === "pin");
   const base = { id: old?.id ?? recId(key), owner: state.owner, key, name:s.name, sci:s.sci, group:s.group, photo, kind:"photo", refPhoto:s.photo || old?.refPhoto || "",
-    at: old?.at || new Date().toISOString(),
+    locSource: src, at: (oldPinned && !pinned ? null : old?.at) || opts?.at || new Date().toISOString(),
     lat: pos?.lat ?? old?.lat ?? state.loc?.lat ?? null, lng: pos?.lng ?? old?.lng ?? state.loc?.lng ?? null, acc: pos?.acc ?? null,
     place: state.loc?.label || old?.place || "", country: state.loc?.country || old?.country || "", userNote: old?.userNote || "" };
   try{
@@ -1505,7 +1625,14 @@ async function collectPhoto(key, file){
       if (!res.ok) return toast(esc(res.error), 4500);
       verdictToast(rec, res.data); if (res.data.points > (old?.points || 0)) celebrate(before);
     } else {
-      if (isGot(old) && !isSighting(old)){ await saveRec({ ...old, photo }); refreshAll(); return toast("Photo updated"); }
+      if (isGot(old) && !isSighting(old) && !(oldPinned && !pinned)){ await saveRec({ ...old, photo }); refreshAll(); return toast("Photo updated"); }
+      if (isGot(old) && oldPinned && !pinned){
+        const spot0 = await captiveSpot(pos, s.group);
+        if (spot0) return toast(`<span class="xpg">0 XP</span><span>This photo was ${esc(captiveNote(spot0, s.group))}. Your pinned photo stays.</span>`, 5500);
+        const r = rarityOf(s), extra = r.pts - Math.round(r.pts / 2);
+        await saveRec({ ...old, ...base, points:(old.points || 0) + extra, verdict:null }); refreshAll();
+        toast(`<span class="xpg">+${extra} XP</span><span>${esc(s.name)} upgraded to full points!</span>`, 4200); celebrate(before); return;
+      }
       if (isGot(old) && isSighting(old)){
         const r = rarityOf(s), extra = r.pts - Math.round(r.pts / 2);
         await saveRec({ ...old, ...base, points:(old.points || 0) + extra, verdict:null }); refreshAll();
@@ -1514,9 +1641,10 @@ async function collectPhoto(key, file){
       const spot = await captiveSpot(pos, s.group);
       if (spot){ await saveRec({ ...base, rarity: rarityOf(s).id, points:0, verdict:"no", note:`This photo was ${captiveNote(spot, s.group)}` }); refreshAll();
         return toast(`<span class="xpg">0 XP</span><span>This photo was ${esc(captiveNote(spot, s.group))}.</span>`, 5500); }
-      const { points, parts } = guestScore(s, pos);
+      const recent = Date.now() - new Date(base.at).getTime() < 36 * 36e5;
+      const { points, parts } = guestScore(s, pos, pinned, { label:" (pinned photo, half)", daily: src === "camera" || recent });
       await saveRec({ ...base, rarity: rarityOf(s).id, points, verdict: null }); refreshAll();
-      toast(`<span class="xpg">+${points} XP</span><span>${esc(s.name)} collected!<br><small style="font-weight:700;opacity:.8">${esc(parts.join(" · "))}${state.sb ? " · Make an account to get it verified" : ""}</small></span>`, 4200);
+      toast(`<span class="xpg">+${points} XP</span><span>${esc(s.name)} collected!${pinned ? " Half points for a pinned gallery photo." : ""}<br><small style="font-weight:700;opacity:.8">${esc(parts.join(" · "))}${state.sb ? " · Make an account to get it verified" : ""}</small></span>`, 4200);
       celebrate(before);
     }
   }catch{ toast("Couldn't save the photo. Your phone may be low on storage.", 3500); }
@@ -1733,7 +1861,13 @@ $("#mygrid").addEventListener("click", e => {
 
 /* ---------- accounts & leaderboards (Supabase) ---------- */
 const CFG = window.FIELD_HUNT_CONFIG || {};
-if (CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase?.createClient){ try{ state.sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey); }catch{} }
+// Work out exactly why accounts aren't on, so the Me tab can say so
+let SB_PROBLEM = "";
+if (!window.FIELD_HUNT_CONFIG) SB_PROBLEM = "config.js couldn't be read. It may have a typo (often curly quotes “ ” instead of straight quotes \" from editing on a phone, or a missing comma).";
+else if (!CFG.supabaseUrl || !CFG.supabaseAnonKey) SB_PROBLEM = "config.js doesn't have your Supabase keys in it. If you uploaded config.js from a new zip, it replaced yours with the blank one.";
+else if (!/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(String(CFG.supabaseUrl).trim())) SB_PROBLEM = `The supabaseUrl in config.js doesn't look right ("${String(CFG.supabaseUrl).slice(0, 60)}"). It should look like https://abcdefgh.supabase.co`;
+else if (!window.supabase?.createClient) SB_PROBLEM = "The account library didn't load. Check your signal and reopen the app.";
+else { try{ state.sb = window.supabase.createClient(String(CFG.supabaseUrl).trim(), String(CFG.supabaseAnonKey).trim()); }catch(e){ SB_PROBLEM = "Supabase didn't accept the keys in config.js: " + String(e?.message || e).slice(0, 120); } }
 const emailFor = u => `${u.toLowerCase()}@players.fieldhunt.app`;
 const USER_RE = /^[A-Za-z0-9_]{3,20}$/;
 
@@ -1812,7 +1946,8 @@ async function migrateGuest(){
 function renderAccount(){
   const box = $("#account");
   if (!state.sb){
-    box.innerHTML = `<div class="label">Account</div><p class="hint">You're playing as a guest. Your XP, badges and photos are saved on this phone.</p><p class="hint">Usernames, leaderboards and photo checking switch on once the free account server is set up (see SETUP-ACCOUNTS.md).</p>`;
+    box.innerHTML = `<div class="label">Account</div><p class="hint">You're playing as a guest. Your XP, badges and photos are saved on this phone.</p><p class="hint">Usernames, leaderboards and photo checking switch on once the free account server is set up (see SETUP-ACCOUNTS.md).</p>
+      ${SB_PROBLEM ? `<div class="verdict no" style="font-size:13px"><b>Why accounts are off:</b> ${esc(SB_PROBLEM)}</div>` : ""}`;
     $("#meSub").textContent = "Playing as a guest on this phone."; return;
   }
   if (state.user){

@@ -3,6 +3,8 @@
 > **Already set up from an earlier version?** You only need to do two things:
 > 1. Run the new `setup.sql` again (step 3). It adds what's new (sightings, the shared field-guide table) and takes points away from any people, pets or farm animals already logged. Everything else is left alone.
 > 2. Replace the code in your `verify-find` function with the new `verify-find.ts` and click **Deploy** again (step 8).
+>
+> **Updating for gallery photos:** only step 2 is needed. Open Edge Functions → `verify-find` → **Code**, delete everything, paste in the new `verify-find.ts`, and click **Deploy**.
 
 Field Hunt works without this, with points and badges saved on each phone. Setting this up once gives you:
 - **Usernames and leaderboards** (weekly and all-time)

@@ -154,13 +154,13 @@ Reply with only JSON: {"match":"yes","cheat":false,"saw":"..."}`;
 }
 
 // Bonus points: first find of the day, and first find in a new area
-async function bonuses(admin: ReturnType<typeof createClient>, userId: string, key: string, lat: number | null, lng: number | null, tz: number) {
+async function bonuses(admin: ReturnType<typeof createClient>, userId: string, key: string, lat: number | null, lng: number | null, tz: number, daily = true) {
   const parts: string[] = []; let add = 0;
   const { data: mine } = await admin.from("finds").select("found_at,lat,lng,points").eq("user_id", userId).gt("points", 0).neq("species_key", key);
   const list = (mine ?? []) as { found_at: string; lat: number | null; lng: number | null }[];
   const now = Date.now();
   const dayStart = Math.floor((now - tz * 60000) / 864e5) * 864e5 + tz * 60000;
-  if (!list.some((f) => new Date(f.found_at).getTime() >= dayStart)) { add += 10; parts.push("First find today +10"); }
+  if (daily && !list.some((f) => new Date(f.found_at).getTime() >= dayStart)) { add += 10; parts.push("First find today +10"); }
   if (lat != null && lng != null && list.length && !list.some((f) => f.lat != null && f.lng != null && kmBetween({ lat: f.lat, lng: f.lng }, { lat, lng }) < 10)) {
     add += 20; parts.push("New area +20");
   }
@@ -339,7 +339,7 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
 
     const { data: prev } = await admin.from("finds").select("*").eq("user_id", user.id).eq("species_key", key).maybeSingle();
     const claimed = Date.parse(String(b.found_at ?? ""));
-    const foundAt = prev?.found_at ?? new Date(Number.isFinite(claimed) ? Math.min(Date.now(), Math.max(Date.now() - 365 * 864e5, claimed)) : Date.now()).toISOString();
+    let foundAt = prev?.found_at ?? new Date(Number.isFinite(claimed) ? Math.min(Date.now(), Math.max(Date.now() - 3650 * 864e5, claimed)) : Date.now()).toISOString();
 
     /* ---------------- sighting (no photo) ---------------- */
     if (mode === "sighting") {
@@ -383,6 +383,11 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
 
     /* ---------------- photo ---------------- */
     const photoPath = String(b.photo_path ?? "");
+    // Where the photo's location came from: "camera" (GPS when taken in the app), "exif" (saved in a gallery photo) or "pin" (placed by hand: half points)
+    const locSource = ["camera", "exif", "pin"].includes(b.loc_source) ? String(b.loc_source) : "camera";
+    const pinned = locSource === "pin";
+    // Upgrading a pinned gallery photo with a camera photo: date it now
+    if (prev?.verdict === "pinned" && !pinned) foundAt = new Date(Number.isFinite(claimed) ? Math.min(Date.now(), claimed) : Date.now()).toISOString();
     if (!photoPath.startsWith(user.id + "/")) return json({ error: "That request was missing details." }, 400);
 
     // Already verified with a photo: just swap the photo, no re-scoring
@@ -412,14 +417,19 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
       const near = await nearbyCount(key, sci, lat, lng, SIGHTING_KM);
       if (lat == null || lng == null) { verdict = "unconfirmed"; note = "No GPS position with this photo, so it couldn't be checked"; }
       else if (near == null) return json({ error: "Couldn't reach the species records to check the location. Try again in a moment." }, 503);
-      else if (near > 0) { verdict = "located"; note = `Location-checked: ${near} record${near === 1 ? "" : "s"} within ${SIGHTING_KM} km`; }
+      else if (near > 0) { verdict = pinned ? "pinned" : "located"; note = `${pinned ? "Pinned" : "Location-checked"}: ${near} record${near === 1 ? "" : "s"} within ${SIGHTING_KM} km`; }
       else { verdict = "unconfirmed"; note = `No records of this species within ${SIGHTING_KM} km of where the photo was taken`; }
     } else {
       const ai = await checkPhoto(encodeBase64(bytes), mediaType, name, sci, group, place);
-      verdict = ai.cheat ? "no" : ai.match;
+      verdict = ai.cheat ? "no" : (pinned && ai.match === "yes") ? "pinned" : ai.match;
       note = ai.cheat ? `${ai.saw ? ai.saw + ". " : ""}Only wild finds photographed by you count.` : ai.saw;
     }
 
+    // A failed or weaker photo never wipes out a pinned photo
+    if (prev?.verdict === "pinned" && (verdict === "no" || verdict === "unconfirmed")) {
+      await admin.storage.from("photos").remove([photoPath]);
+      return json({ verdict: "no", kept: "pinned", note, points: prev.points, rarity: prev.rarity, parts: [], photo_path: prev.photo_path, rescored: true });
+    }
     // A failed photo never wipes out a confirmed sighting
     if ((verdict === "no" || verdict === "unconfirmed") && prev?.verdict === "sighted") {
       await admin.storage.from("photos").remove([photoPath]);
@@ -430,11 +440,15 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
     const rar = rarityFor(rarCount);
     const parts: string[] = [];
     let points = 0;
-    if (verdict === "yes" || verdict === "located" || verdict === "unsure") {
-      const base = verdict === "unsure" ? Math.round(rar.pts / 2) : rar.pts;
-      points = base; parts.push(`${cap1(rar.id)} +${base}${verdict === "unsure" ? " (half: not sure)" : ""}`);
-      const bo = await bonuses(admin, user.id, key, lat, lng, tz); points += bo.add; parts.push(...bo.parts);
+    if (verdict === "yes" || verdict === "located" || verdict === "unsure" || verdict === "pinned") {
+      const half = verdict === "unsure" || verdict === "pinned";
+      const base = half ? Math.round(rar.pts / 2) : rar.pts;
+      points = base; parts.push(`${cap1(rar.id)} +${base}${verdict === "unsure" ? " (half: not sure)" : verdict === "pinned" ? " (half: pinned photo)" : ""}`);
+      // Old gallery photos don't earn the "first find today" bonus
+      const recent = Date.now() - new Date(foundAt).getTime() < 36 * 36e5;
+      const bo = await bonuses(admin, user.id, key, lat, lng, tz, locSource === "camera" || recent); points += bo.add; parts.push(...bo.parts);
       if (prev?.verdict === "sighted") parts.push("Upgraded from sighting");
+      if (prev?.verdict === "pinned" && !half) parts.push("Upgraded to full points");
     }
 
     const row = {
