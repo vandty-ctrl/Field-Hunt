@@ -1,7 +1,7 @@
 {
   "name": "Field Hunt",
   "short_name": "Field Hunt",
-  "description": "Find reptiles, amphibians, fish, birds, plants and trees near you, see where they've been spotted on a satellite map, and photograph them to tick them off.",
+  "description": "Find reptiles, amphibians, fish, mammals, birds, plants and trees near you, see where they've been spotted on a satellite map, and photograph them to tick them off.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

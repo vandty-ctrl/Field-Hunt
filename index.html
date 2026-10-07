@@ -22,7 +22,7 @@
 :root{
   --bg:#eef0e8; --surface:#fbfbf6; --ink:#1d241b; --muted:#5d6656; --line:#d3d8c9;
   --gum:#33533a; --gum-ink:#fbfbf6; --banksia:#b8701c;
-  --reptile:#9a5a22; --amphibian:#2f7a77; --fish:#2c5f9e; --bird:#7b4fa0; --plant:#4f8a2e; --tree:#6b4f2a;
+  --reptile:#9a5a22; --amphibian:#2f7a77; --fish:#2c5f9e; --bird:#7b4fa0; --plant:#4f8a2e; --tree:#6b4f2a; --mammal:#a0384f; --other:#5d6656;
   --danger:#a8321f; --ok:#2e6b33; --ok-soft:#d9ead6;
   --font-display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
   --font-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -32,7 +32,7 @@
 @media (prefers-color-scheme: dark){:root{
   --bg:#141812; --surface:#1c2219; --ink:#e6eadf; --muted:#a0aa96; --line:#323a2d;
   --gum:#8fc29a; --gum-ink:#11160f; --banksia:#e2a35a;
-  --reptile:#e0a067; --amphibian:#77cbc7; --fish:#86b2ec; --bird:#c4a1e6; --plant:#9fd27a; --tree:#cfae7f;
+  --reptile:#e0a067; --amphibian:#77cbc7; --fish:#86b2ec; --bird:#c4a1e6; --plant:#9fd27a; --tree:#cfae7f; --mammal:#ef8fa3; --other:#a0aa96;
   --danger:#f0846f; --ok:#8fd096; --ok-soft:#1f3322; color-scheme:dark}}
 
 *{box-sizing:border-box}
@@ -62,7 +62,7 @@ button{cursor:pointer}
 .choices{display:flex;flex-direction:column;gap:6px}
 .choices button{text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px}
 
-.groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
 .grp{position:relative}
 .grp input{position:absolute;opacity:0;pointer-events:none}
 .grp label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px;font-weight:700;font-size:14px;cursor:pointer;user-select:none}
@@ -108,16 +108,27 @@ button{cursor:pointer}
 .empty{border:1px dashed var(--line);border-radius:12px;padding:20px;text-align:center;color:var(--muted);background:var(--surface)}
 .more{align-self:center}
 .confirm{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--danger);font-weight:700}
+.addrow{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.addpanel{display:flex;flex-direction:column;gap:10px}
+.addpanel input{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:11px 12px}
+.hits{display:flex;flex-direction:column;gap:6px}
+.hit{display:flex;gap:10px;align-items:center;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px;width:100%}
+.hit img,.hit .ph{width:48px;height:48px;border-radius:7px;object-fit:cover;background:var(--line);flex:none}
+.hit span{min-width:0;display:flex;flex-direction:column}
+.hit b{overflow-wrap:anywhere}
+.hit i{font-family:var(--font-latin);color:var(--banksia)}
+.mine-tag{color:var(--gum);font-weight:700}
 .foot{font-size:12px;color:var(--muted);text-align:center}
 .foot a{color:inherit}
 
 .g-reptiles{--c:var(--reptile)} .g-amphibians{--c:var(--amphibian)} .g-fish{--c:var(--fish)}
 .g-birds{--c:var(--bird)} .g-plants{--c:var(--plant)} .g-trees{--c:var(--tree)}
+.g-mammals{--c:var(--mammal)} .g-other{--c:var(--other)}
 .leaflet-popup-content{margin:10px 12px;font-family:var(--font-body)}
 .pop{display:flex;gap:8px;align-items:center;min-width:180px}
 .pop img{width:48px;height:48px;border-radius:6px;object-fit:cover}
 .pop b{display:block}
-@media (max-width:400px){.groups{grid-template-columns:repeat(2,minmax(0,1fr))}.card{grid-template-columns:80px minmax(0,1fr)}.thumb{width:80px;height:80px}}
+@media (max-width:400px){.card{grid-template-columns:80px minmax(0,1fr)}.thumb{width:80px;height:80px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -177,6 +188,16 @@ button{cursor:pointer}
     <button class="tab" data-v="mine" aria-pressed="false">All my finds</button>
   </div>
 
+  <div class="addrow">
+    <span class="meta" id="listNote"></span>
+    <button class="btn ghost" id="addBtn" type="button" aria-expanded="false">+ Add a species</button>
+  </div>
+  <section class="panel addpanel" id="addPanel" hidden aria-label="Add a species">
+    <div class="label">Add something you know is here</div>
+    <input id="addInput" type="search" placeholder="Type a name, e.g. bobtail or Tiliqua" autocomplete="off" enterkeyhint="search" aria-label="Species name">
+    <div class="hits" id="hits"></div>
+  </section>
+
   <section class="list" id="list" aria-live="polite">
     <div class="empty">Tap <b>Use my location</b> or type a park, tick what you want to look for, then tap <b>Find species</b>. You'll get a photo list of what's been seen there and pins on the map showing where.</div>
   </section>
@@ -201,10 +222,13 @@ const GROUPS = {
   amphibians: { label:"Amphibians", iconic:"Amphibia" },
   fish:       { label:"Fish",       iconic:"Actinopterygii" },
   birds:      { label:"Birds",      iconic:"Aves" },
+  mammals:    { label:"Mammals",    iconic:"Mammalia" },
   plants:     { label:"Plants",     iconic:"Plantae" },
   trees:      { label:"Trees",      families:["Pinaceae","Cupressaceae","Araucariaceae","Podocarpaceae","Fagaceae","Nothofagaceae","Betulaceae","Juglandaceae","Ulmaceae","Platanaceae","Magnoliaceae","Arecaceae","Casuarinaceae","Salicaceae","Sapindaceae","Myrtaceae","Moraceae","Lauraceae","Meliaceae","Dipterocarpaceae","Bignoniaceae"] }
 };
-const ORDER = ["reptiles","amphibians","fish","plants","trees","birds"];
+GROUPS.other = { label:"Others" };
+const ORDER = ["reptiles","amphibians","fish","mammals","birds","plants","trees"];
+const ICONIC_TO_GROUP = { Reptilia:"reptiles", Amphibia:"amphibians", Actinopterygii:"fish", Aves:"birds", Mammalia:"mammals", Plantae:"plants" };
 const tick = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
 const state = {
@@ -244,7 +268,7 @@ const obsLayer = L.layerGroup().addTo(map);
 const findsLayer = L.layerGroup().addTo(map);
 const hereLayer = L.layerGroup().addTo(map);
 const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#33533a";
-const groupColor = g => cssVar("--" + ({reptiles:"reptile",amphibians:"amphibian",fish:"fish",birds:"bird",plants:"plant",trees:"tree"})[g]);
+const groupColor = g => cssVar("--" + (({reptiles:"reptile",amphibians:"amphibian",fish:"fish",birds:"bird",plants:"plant",trees:"tree",mammals:"mammal"})[g] || "other"));
 
 /* ---------- helpers ---------- */
 const setStatus = (msg, err) => { const el = $("#status"); el.textContent = msg || ""; el.classList.toggle("err", !!err); };
@@ -394,6 +418,7 @@ async function search(){
       }
     }
     state.species = [...byId.values()].sort((a,b) => b.count - a.count);
+    mergeCustom();
     state.showN = 30;
     // pins
     obsLayer.clearLayers();
@@ -482,11 +507,12 @@ function render(){
         <span class="kind">${GROUPS[s.group].label.replace(/s$/, "")}</span>
         <span class="name">${esc(s.name)}</span>
         <span class="latin">${esc(s.sci)}</span>
-        <span class="meta">${s.count} sighting${s.count === 1 ? "" : "s"} within ${state.radius} km${f ? ` · <span class="found">Found ${esc(new Date(f.at).toLocaleDateString())}</span>` : ""}</span>
+        <span class="meta">${s.custom ? '<span class="mine-tag">Added by you</span>' : `${s.count} sighting${s.count === 1 ? "" : "s"} within ${state.radius} km`}${f ? ` · <span class="found">Found ${esc(new Date(f.at).toLocaleDateString())}</span>` : ""}</span>
         <div class="actions">
           <button class="btn ghost" data-map="${s.id}">Show on map</button>
           <button class="btn" data-shoot="${s.id}">${f ? "Retake photo" : "I found it"}</button>
           <a href="https://www.inaturalist.org/taxa/${s.id}" target="_blank" rel="noopener">About ↗</a>
+          ${s.custom ? `<button class="btn ghost" data-unadd="${s.id}">Remove</button>` : ""}
         </div>
       </div></article>`;
   }).join("") + (rows.length > state.showN ? `<button class="btn ghost more" id="moreBtn">Show ${Math.min(30, rows.length - state.showN)} more</button>` : "");
@@ -509,6 +535,7 @@ $("#list").addEventListener("click", async e => {
   const t = e.target.closest("button"); if (!t) return;
   if (t.id === "moreBtn"){ state.showN += 30; render(); return; }
   if (t.dataset.map){ showOnMap(+t.dataset.map); return; }
+  if (t.dataset.unadd){ removeCustom(+t.dataset.unadd); return; }
   if (t.dataset.shoot){ state.pending = +t.dataset.shoot; $("#cam").value = ""; $("#cam").click(); return; }
   if (t.dataset.del){
     const row = t.closest("[data-row]");
@@ -551,6 +578,67 @@ $("#cam").addEventListener("change", async () => {
     state.finds.set(id, rec); drawFinds(); render();
     setStatus("Nice! " + sp.name + " ticked off.");
   }catch{ setStatus("Couldn't save the photo. Your phone may be low on storage.", true); }
+});
+
+/* ---------- add your own species ---------- */
+const customs = () => ls.get("fh-custom", []);
+function kmBetween(a, b){
+  const R = 6371, toR = x => x * Math.PI / 180;
+  const dLat = toR(b.lat - a.lat), dLng = toR(b.lng - a.lng);
+  const h = Math.sin(dLat/2)**2 + Math.cos(toR(a.lat)) * Math.cos(toR(b.lat)) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function mergeCustom(){
+  if (!state.loc) return;
+  const have = new Set(state.species.map(s => s.id));
+  const near = customs().filter(c => !have.has(c.id) && kmBetween(c, state.loc) <= Math.max(state.radius, 2));
+  state.species = [...near.map(c => ({ ...c, count:0, custom:true })), ...state.species];
+}
+function removeCustom(id){
+  ls.set("fh-custom", customs().filter(c => c.id !== id));
+  state.species = state.species.filter(s => !(s.custom && s.id === id));
+  render();
+}
+$("#addBtn").addEventListener("click", () => {
+  const p = $("#addPanel"); p.hidden = !p.hidden;
+  $("#addBtn").setAttribute("aria-expanded", String(!p.hidden));
+  if (!p.hidden) $("#addInput").focus();
+});
+let addTimer = null, addSeq = 0, lastHits = [];
+$("#addInput").addEventListener("input", e => {
+  clearTimeout(addTimer);
+  const q = e.target.value.trim();
+  if (q.length < 2){ $("#hits").innerHTML = ""; return; }
+  addTimer = setTimeout(async () => {
+    const seq = ++addSeq;
+    try{
+      const r = await getJSON(`${API}/taxa/autocomplete?q=${encodeURIComponent(q)}&per_page=8&locale=en`);
+      if (seq !== addSeq) return;
+      lastHits = (r.results || []).filter(t => t.rank_level <= 10);
+      $("#hits").innerHTML = lastHits.length ? lastHits.map((t, i) => `
+        <button class="hit" type="button" data-hit="${i}">
+          ${t.default_photo?.square_url ? `<img src="${esc(t.default_photo.square_url)}" alt="">` : '<span class="ph"></span>'}
+          <span><b>${esc(t.preferred_common_name ? cap(t.preferred_common_name) : t.name)}</b><i>${esc(t.name)}</i></span>
+        </button>`).join("") : '<p class="meta">No species match that name. Try the scientific name.</p>';
+    }catch{ if (seq === addSeq) $("#hits").innerHTML = '<p class="meta">Couldn\'t search right now. Check your signal.</p>'; }
+  }, 350);
+});
+$("#hits").addEventListener("click", e => {
+  const b = e.target.closest("button[data-hit]"); if (!b) return;
+  if (!state.loc){ setStatus("Set a location first, so the species is saved for this place.", true); return; }
+  const t = lastHits[+b.dataset.hit];
+  const name = t.preferred_common_name ? cap(t.preferred_common_name) : t.name;
+  if (state.species.some(s => s.id === t.id)){ setStatus(name + " is already on your list."); }
+  else{
+    const rec = { id:t.id, name, sci:t.name, group: ICONIC_TO_GROUP[t.iconic_taxon_name] || "other",
+      photo: t.default_photo?.medium_url || t.default_photo?.square_url || "", lat:state.loc.lat, lng:state.loc.lng, at:new Date().toISOString() };
+    ls.set("fh-custom", [...customs().filter(c => c.id !== t.id), rec]);
+    state.species = [{ ...rec, count:0, custom:true }, ...state.species];
+    setStatus(name + " added to your list for this area.");
+  }
+  $("#addInput").value = ""; $("#hits").innerHTML = ""; $("#addPanel").hidden = true; $("#addBtn").setAttribute("aria-expanded","false");
+  state.view = "all"; document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === "all")));
+  render();
 });
 
 /* ---------- start ---------- */
