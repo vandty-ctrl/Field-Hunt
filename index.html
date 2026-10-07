@@ -187,12 +187,6 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .mygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
 .myf{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:1;background:var(--line);border:0;padding:0}
 .myf img{width:100%;height:100%;object-fit:cover;display:block}
-.vchip{position:absolute;left:6px;top:6px;z-index:1;font-size:10px;font-weight:800;letter-spacing:.04em;border-radius:6px;padding:2px 6px;color:#fff;background:rgba(10,20,14,.72)}
-.vchip.yes{background:var(--r-uncommon)} .vchip.unsure{background:#b07d12} .vchip.no{background:var(--danger)}
-.verdict{border-radius:12px;padding:10px 12px;font-size:14px;font-weight:700;background:var(--paper);border:1px solid var(--line)}
-.verdict.yes{border-color:var(--r-uncommon)} .verdict.unsure{border-color:#b07d12} .verdict.no{border-color:var(--danger)}
-.progress{height:8px;border-radius:4px;background:var(--line);overflow:hidden}
-.progress span{display:block;height:100%;background:var(--moss);width:0}
 .myf span{position:absolute;inset:auto 0 0 0;padding:16px 6px 5px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.7));color:#fff;font-size:12px;font-weight:800;text-align:left;line-height:1.15}
 
 .board{display:flex;flex-direction:column;gap:6px}
@@ -439,8 +433,7 @@ const state = {
   units: ls.get("fh-units", "km"),
   species: [], showN: 40, view: "all",
   finds: new Map(), pending: null,
-  sb: null, user: null, username: null, rankPeriod: "week",
-  owner: "guest", guestCount: 0, skipGuest: false, migrating: null
+  sb: null, user: null, username: null, rankPeriod: "week"
 };
 const keyOf = x => String(x);
 
@@ -475,10 +468,7 @@ const idb = (() => {
   return { all: () => tx("readonly", s => s.getAll()), put: v => tx("readwrite", s => s.put(v)), del: id => tx("readwrite", s => s.delete(id)) };
 })();
 const urls = new Map();
-const findURL = f => { if (!f?.photo) return ""; const k = String(f.id); if (!urls.has(k)) urls.set(k, URL.createObjectURL(f.photo)); return urls.get(k); };
-const dropURL = id => { const k = String(id); if (urls.has(k)){ URL.revokeObjectURL(urls.get(k)); urls.delete(k); } };
-const isGot = f => !!f && f.verdict !== "no";
-const VERDICT = { yes:"Verified", unsure:"Half points", no:"No match", pending:"Checking…" };
+const findURL = f => { if (!f?.photo) return ""; const k = keyOf(f.key ?? f.id); if (!urls.has(k)) urls.set(k, URL.createObjectURL(f.photo)); return urls.get(k); };
 
 /* ---------- toasts & status ---------- */
 function toast(html, ms = 2600){ const t = document.createElement("div"); t.className = "toast"; t.innerHTML = html; $("#toasts").appendChild(t); setTimeout(() => t.remove(), ms); }
@@ -523,7 +513,7 @@ function addPin(p, g, big){
 function drawFinds(){
   findsLayer.clearLayers();
   for (const f of state.finds.values()){
-    if (f.lat == null || !isGot(f)) continue;
+    if (f.lat == null) continue;
     L.circleMarker([f.lat, f.lng], { radius:9, color:"#fff", weight:3, fillColor:"#ffd23f", fillOpacity:1 })
       .bindPopup(`<div class="pop"><img src="${esc(findURL(f))}" alt=""><div><b>${esc(f.name)}</b><small>You found this ${esc(new Date(f.at).toLocaleDateString())}</small></div></div>`)
       .addTo(findsLayer);
@@ -702,16 +692,16 @@ function removeCustom(key){ ls.set("fh-custom", ls.get("fh-custom", []).filter(c
 /* ---------- field cards ---------- */
 $("#listSeg").addEventListener("click", e => { const b = e.target.closest("button[data-v]"); if (!b) return; state.view = b.dataset.v; $$("#listSeg button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderGrid(); });
 function renderGrid(){
-  const sp = state.species, got = sp.filter(s => isGot(state.finds.get(s.key))).length;
+  const sp = state.species, got = sp.filter(s => state.finds.has(s.key)).length;
   $("#collected").textContent = `${got} of ${sp.length} collected`;
   const grid = $("#grid");
   if (!sp.length){ grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${state.loc ? "Pick what to hunt for and tap <b>Start the hunt</b>." : "Tap <b>Near me</b> or type a park, pick what to hunt for, then tap <b>Start the hunt</b>. Every species you photograph earns XP, and rarer finds earn more."}</div>`; return; }
   let rows = sp;
-  if (state.view === "left") rows = sp.filter(s => !isGot(state.finds.get(s.key)));
-  if (state.view === "found") rows = sp.filter(s => isGot(state.finds.get(s.key)));
+  if (state.view === "left") rows = sp.filter(s => !state.finds.has(s.key));
+  if (state.view === "found") rows = sp.filter(s => state.finds.has(s.key));
   if (!rows.length){ grid.innerHTML = `<div class="empty" style="grid-column:1/-1">${state.view === "found" ? "No cards collected here yet. Tap a card and photograph it when you spot it." : "You've collected every card here. Try more groups or a bigger distance."}</div>`; return; }
   grid.innerHTML = rows.slice(0, state.showN).map(s => {
-    const f0 = state.finds.get(s.key), f = isGot(f0) ? f0 : null, r = rarityOf(s);
+    const f = state.finds.get(s.key), r = rarityOf(s);
     return `<button class="tcard r-${r.id} g-${s.group}${f ? " got" : ""}" type="button" data-k="${esc(s.key)}" aria-label="${esc(s.name)}, ${r.label}${f ? ", collected" : ""}">
       <div class="ph">${s.photo ? `<img loading="lazy" src="${esc(s.photo)}" alt="">` : ""}<span class="rib">${r.label}</span><span class="pts">${f ? "Got" : "+" + r.pts}</span>
         ${f ? `<img class="stamp" src="${esc(findURL(f))}" alt=""><span class="found-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Collected</span>` : ""}</div>
@@ -727,7 +717,7 @@ $("#grid").addEventListener("click", e => {
 let sheetKey = null;
 function openSheet(key){
   const s = state.species.find(x => x.key === key); if (!s) return; sheetKey = key;
-  const f0 = state.finds.get(key), f = isGot(f0) ? f0 : null, r = rarityOf(s);
+  const f = state.finds.get(key), r = rarityOf(s);
   const more = s.inatId ? `https://www.inaturalist.org/taxa/${s.inatId}` : `https://www.gbif.org/species/${s.gbifKey}`;
   $("#sheet").className = `sheet on r-${r.id}`;
   $("#sheet").innerHTML = `<div class="hero">${s.photo ? `<img src="${esc(s.photo)}" alt="${esc(s.name)}">` : ""}<button class="close" id="sheetClose" type="button" aria-label="Close">×</button></div>
@@ -735,10 +725,9 @@ function openSheet(key){
       <div class="tags"><span class="tag rar">${r.label} · +${r.pts} XP</span><span class="tag">${esc(GROUPS[s.group]?.one || "Wildlife")}</span></div>
       <h2 id="sheetTitle">${esc(s.name)}</h2><div class="sci">${esc(s.sci)}</div>
       <p class="hint">${s.custom ? "You added this species to this area." : `${s.count} record${s.count === 1 ? "" : "s"} within ${fmtDist(state.radiusKm)}`} · From ${esc(s.sources.join(" + "))}</p>
-      ${verdictBox(f0)}
       ${f ? `<div class="mine-photo"><img src="${esc(findURL(f))}" alt="Your photo"><div><b>Collected ${esc(new Date(f.at).toLocaleDateString())}</b><br><span class="hint">+${f.points || 0} XP earned</span></div></div>` : ""}
       <div class="acts">
-        <button class="btn big sun" id="shootBtn" type="button" style="grid-column:1/-1">${f ? "Retake photo" : f0?.verdict === "no" ? "Try another photo" : "I found it! Take a photo"}</button>
+        <button class="btn big sun" id="shootBtn" type="button" style="grid-column:1/-1">${f ? "Retake photo" : "I found it! Take a photo"}</button>
         <button class="btn soft" id="mapBtn" type="button">Show on map</button>
         <a class="btn soft" href="${esc(more)}" target="_blank" rel="noopener">Learn more ↗</a>
         ${s.custom ? `<button class="btn soft" id="unaddBtn" type="button" style="grid-column:1/-1">Remove from this area</button>` : ""}
@@ -771,63 +760,12 @@ async function showOnMap(key){
 $("#showAllBtn").addEventListener("click", () => { showTab("hunt"); search(); });
 
 /* ---------- camera & scoring ---------- */
-async function shrink(file){ try{ const bmp = await createImageBitmap(file); const k = Math.min(1, 1400 / Math.max(bmp.width, bmp.height));
+async function shrink(file){ try{ const bmp = await createImageBitmap(file); const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
   const c = document.createElement("canvas"); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k); c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
   return await new Promise(r => c.toBlob(b => r(b || file), "image/jpeg", .85)); }catch{ return file; } }
 const herePos = () => new Promise(res => { if (!navigator.geolocation) return res(null);
   navigator.geolocation.getCurrentPosition(p => res({ lat:p.coords.latitude, lng:p.coords.longitude }), () => res(null), { enableHighAccuracy:true, timeout:8000, maximumAge:30000 }); });
 const dayKey = d => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`; };
-const recId = key => state.owner === "guest" ? key : `${state.owner}:${key}`;
-
-function verdictBox(f){
-  if (!f || !f.verdict) return f ? `<div class="verdict">Guest find, not checked yet. Make an account and it gets checked by the species AI.</div>` : "";
-  if (f.verdict === "pending") return `<div class="verdict">Your photo is waiting to be checked. It will be checked next time you have signal.</div>`;
-  if (f.verdict === "yes") return `<div class="verdict yes">Verified by the species AI${f.note ? `: ${esc(f.note)}` : ""}</div>`;
-  if (f.verdict === "unsure") return `<div class="verdict unsure">Half points. The AI wasn't sure${f.note ? `. It saw: ${esc(f.note)}` : ""}. Retake a clearer photo to try for full points.</div>`;
-  return `<div class="verdict no">No points for this photo${f.note ? `. The AI saw: ${esc(f.note)}` : ""}. Try another photo of the real thing.</div>`;
-}
-async function saveRec(rec){ await idb.put(rec); dropURL(rec.id); state.finds.set(rec.key, rec); }
-function refreshAll(){ drawFinds(); renderGrid(); renderRanger(); if ($("#tab-journal").classList.contains("on")) renderJournal(); if (sheetKey && state.finds.has(sheetKey)) openSheet(sheetKey); }
-
-function guestScore(s, pos){
-  const r = rarityOf(s), parts = [`${r.label} +${r.pts}`]; let points = r.pts;
-  const all = [...state.finds.values()].filter(isGot);
-  if (!all.some(f => dayKey(f.at) === dayKey(Date.now()))){ points += 10; parts.push("First find today +10"); }
-  const p = pos || state.loc;
-  if (p && all.length && !all.some(f => f.lat != null && kmBetween(f, p) < 10)){ points += 20; parts.push("New area +20"); }
-  return { points, parts };
-}
-
-// Upload a photo and have the server check it and award points
-async function verifyRec(rec){
-  if (!state.sb || !state.user) return { ok:false, error:"Sign in to get photos checked." };
-  const path = `${state.user.id}/${rec.key}-${Date.now()}.jpg`;
-  try{
-    const up = await state.sb.storage.from("photos").upload(path, rec.photo, { contentType:"image/jpeg", upsert:false });
-    if (up.error) return { ok:false, error:"Couldn't upload the photo. It will be checked later." };
-    const { data, error } = await state.sb.functions.invoke("verify-find", { body:{
-      species_key:rec.key, name:rec.name, sci:rec.sci, group:rec.group, photo_path:path, lat:rec.lat, lng:rec.lng,
-      place:rec.place, country:rec.country, radius_km:state.radiusKm, tz:new Date().getTimezoneOffset(), found_at:rec.at } });
-    if (error){
-      let msg = "Couldn't check the photo right now. It will be checked later.";
-      try{ const j = await error.context?.json?.(); if (j?.error) msg = j.error; }catch{}
-      state.sb.storage.from("photos").remove([path]).catch(() => {});
-      return { ok:false, error:msg };
-    }
-    Object.assign(rec, { verdict:data.verdict, note:data.note || "", points:data.points, rarity:data.rarity, photo_path:data.photo_path });
-    await saveRec(rec);
-    return { ok:true, data };
-  }catch{ return { ok:false, error:"Couldn't check the photo right now. It will be checked later." }; }
-}
-const aN = w => (/^[aeiou]/i.test(w) ? "an " : "a ") + w;
-function verdictToast(rec, data){
-  const n = esc(rec.name);
-  if (data.rescored === false) return toast("Photo updated");
-  const parts = (data.parts || []).length ? `<br><small style="font-weight:700;opacity:.8">${esc(data.parts.join(" · "))}</small>` : "";
-  if (data.verdict === "yes") toast(`<span class="xpg">+${data.points} XP</span><span>${n} verified!${parts}</span>`, 4200);
-  else if (data.verdict === "unsure") toast(`<span class="xpg">+${data.points} XP</span><span>Half points: the AI wasn't sure it's ${aN(n)}.${parts}</span>`, 5000);
-  else toast(`<span class="xpg">0 XP</span><span>${data.note ? esc(data.note) : `That doesn't look like ${aN(n)}`}. Try another photo.</span>`, 5500);
-}
 
 $("#cam").addEventListener("change", async () => {
   const file = $("#cam").files?.[0]; const key = state.pending; state.pending = null;
@@ -835,32 +773,33 @@ $("#cam").addEventListener("change", async () => {
   const before = snapshot();
   const [photo, pos] = await Promise.all([shrink(file), herePos()]);
   const old = state.finds.get(key);
-  const base = { id: old?.id ?? recId(key), owner: state.owner, key, name:s.name, sci:s.sci, group:s.group, photo,
+  let points = old?.points || 0; const parts = [];
+  if (!old){
+    const r = rarityOf(s); points = r.pts; parts.push(`${r.label} +${r.pts}`);
+    const all = [...state.finds.values()];
+    if (!all.some(f => dayKey(f.at) === dayKey(Date.now()))){ points += 10; parts.push("First find today +10"); }
+    const p = pos || state.loc;
+    if (p && all.length && !all.some(f => f.lat != null && kmBetween(f, p) < 10)){ points += 20; parts.push("New area +20"); }
+  }
+  const rec = { id: old?.id ?? key, key, name:s.name, sci:s.sci, group:s.group, rarity: old?.rarity || rarityOf(s).id, points, photo,
     at: old?.at || new Date().toISOString(),
     lat: pos?.lat ?? old?.lat ?? state.loc?.lat ?? null, lng: pos?.lng ?? old?.lng ?? state.loc?.lng ?? null,
-    place: state.loc?.label || old?.place || "", country: state.loc?.country || old?.country || "" };
+    place: state.loc?.label || "", country: state.loc?.country || "" };
   try{
-    if (state.user){
-      const rec = { ...base, rarity: old?.rarity || rarityOf(s).id, points: old?.points || 0, verdict: old?.verdict === "yes" ? "yes" : "pending", note: old?.note || "", photo_path: old?.photo_path };
-      await saveRec(rec); refreshAll();
-      toast("Checking your photo…", 1800);
-      const res = await verifyRec(rec);
-      refreshAll();
-      if (!res.ok) return toast(esc(res.error), 4500);
-      verdictToast(rec, res.data); if (res.data.points > 0) celebrate(before);
-    } else {
-      if (isGot(old)){ await saveRec({ ...old, photo }); refreshAll(); return toast("Photo updated"); }
-      const { points, parts } = guestScore(s, pos);
-      await saveRec({ ...base, rarity: rarityOf(s).id, points, verdict: null }); refreshAll();
-      toast(`<span class="xpg">+${points} XP</span><span>${esc(s.name)} collected!<br><small style="font-weight:700;opacity:.8">${esc(parts.join(" · "))}${state.sb ? " · Make an account to get it verified" : ""}</small></span>`, 4200);
-      celebrate(before);
-    }
+    await idb.put(rec);
+    if (urls.has(key)){ URL.revokeObjectURL(urls.get(key)); urls.delete(key); }
+    state.finds.set(key, rec); drawFinds(); renderGrid(); renderRanger();
+    if (sheetKey === key) openSheet(key);
+    if (!old){
+      toast(`<span class="xpg">+${points} XP</span><span>${esc(s.name)} collected!<br><small style="font-weight:700;opacity:.8">${esc(parts.join(" · "))}</small></span>`, 3600);
+      celebrate(before); syncFind(rec);
+    } else toast("Photo updated");
   }catch{ toast("Couldn't save the photo. Your phone may be low on storage.", 3500); }
 });
 
 /* ---------- levels, streaks, badges ---------- */
 function totals(){
-  const all = [...state.finds.values()].filter(isGot); const xp = all.reduce((a, f) => a + (f.points || 0), 0);
+  const all = [...state.finds.values()]; const xp = all.reduce((a, f) => a + (f.points || 0), 0);
   const by = g => all.filter(f => f.group === g).length;
   const days = [...new Set(all.map(f => dayKey(f.at)))].sort();
   let best = 0, run = 0, prev = null;
@@ -910,28 +849,21 @@ function renderJournal(){
   const t = totals();
   $("#sSpecies").textContent = t.n; $("#sXP").textContent = t.xp; $("#sStreak").textContent = t.best; $("#sPlaces").textContent = t.places;
   $("#badges").innerHTML = BADGES.map(b => { const on = b.t(t); return `<div class="badge${on ? "" : " locked"}" style="--bc:var(${b.c})"><div class="medal">${ic(b.icon)}</div><b>${esc(b.name)}</b><small>${esc(b.desc)}</small></div>`; }).join("");
-  const all = [...state.finds.values()].sort((a, b) => String(b.at).localeCompare(String(a.at)));
-  $("#mygrid").innerHTML = all.length ? all.map(f => `<button class="myf" data-k="${esc(f.key)}" type="button"><img src="${esc(findURL(f))}" alt="">${f.verdict ? `<em class="vchip ${esc(f.verdict)}">${VERDICT[f.verdict] || ""}</em>` : ""}<span>${esc(f.name)}</span></button>`).join("") : '<div class="empty" style="grid-column:1/-1">Your photos appear here as you collect species.</div>';
+  const all = t.all.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  $("#mygrid").innerHTML = all.length ? all.map(f => `<button class="myf" data-k="${esc(keyOf(f.key ?? f.id))}" type="button"><img src="${esc(findURL(f))}" alt=""><span>${esc(f.name)}</span></button>`).join("") : '<div class="empty" style="grid-column:1/-1">Your photos appear here as you collect species.</div>';
 }
 $("#mygrid").addEventListener("click", e => {
   const b = e.target.closest(".myf"); if (!b) return; const f = state.finds.get(b.dataset.k); if (!f) return;
   $("#sheet").className = "sheet on";
   $("#sheet").innerHTML = `<div class="hero"><img src="${esc(findURL(f))}" alt="Your photo of ${esc(f.name)}"><button class="close" id="sheetClose" type="button" aria-label="Close">×</button></div>
     <div class="inner"><h2 id="sheetTitle">${esc(f.name)}</h2><div class="sci">${esc(f.sci)}</div>
-    <p class="hint">Found ${esc(new Date(f.at).toLocaleDateString())}${f.place ? " at " + esc(f.place) : ""} · +${f.points || 0} XP</p>
-    ${verdictBox(f)}
-    <div id="delRow"><button class="btn soft" id="delBtn" type="button">Delete this find</button></div></div>`;
+    <p class="hint">Collected ${esc(new Date(f.at).toLocaleDateString())}${f.place ? " at " + esc(f.place) : ""} · +${f.points || 0} XP</p>
+    <div id="delRow"><button class="btn soft" id="delBtn" type="button">Delete this photo</button></div></div>`;
   $("#scrim").classList.add("on"); $("#sheetClose").onclick = closeSheet;
   $("#delBtn").onclick = () => {
-    $("#delRow").innerHTML = `<p class="hint">This removes the photo and its XP${state.user ? " from your account" : " from this phone"}.</p><div class="acts"><button class="btn" id="delYes" type="button" style="background:var(--danger)">Delete</button><button class="btn soft" id="delNo" type="button">Keep it</button></div>`;
+    $("#delRow").innerHTML = `<p class="hint">This removes the photo and its XP from this phone.</p><div class="acts"><button class="btn" id="delYes" type="button" style="background:var(--danger)">Delete</button><button class="btn soft" id="delNo" type="button">Keep it</button></div>`;
     $("#delNo").onclick = closeSheet;
-    $("#delYes").onclick = async () => {
-      if (state.user && f.owner === state.user.id){
-        try{ await state.sb.from("finds").delete().eq("user_id", state.user.id).eq("species_key", f.key); if (f.photo_path) await state.sb.storage.from("photos").remove([f.photo_path]); }catch{}
-      }
-      try{ await idb.del(f.id); }catch{}
-      dropURL(f.id); state.finds.delete(f.key); closeSheet(); refreshAll(); renderJournal();
-    };
+    $("#delYes").onclick = async () => { try{ await idb.del(f.id); }catch{} const k = keyOf(f.key ?? f.id); if (urls.has(k)){ URL.revokeObjectURL(urls.get(k)); urls.delete(k); } state.finds.delete(k); drawFinds(); renderGrid(); renderRanger(); renderJournal(); closeSheet(); };
   };
 });
 
@@ -940,98 +872,31 @@ const CFG = window.FIELD_HUNT_CONFIG || {};
 if (CFG.supabaseUrl && CFG.supabaseAnonKey && window.supabase?.createClient){ try{ state.sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey); }catch{} }
 const emailFor = u => `${u.toLowerCase()}@players.fieldhunt.app`;
 const USER_RE = /^[A-Za-z0-9_]{3,20}$/;
-
-async function allRecs(){ try{ return (await idb.all()) || []; }catch{ return []; } }
-async function loadFinds(){
-  for (const f of state.finds.values()) dropURL(f.id);
-  state.finds = new Map();
-  const recs = await allRecs();
-  for (const f of recs){ const owner = f.owner || "guest"; if (owner !== state.owner) continue;
-    f.owner = owner; f.key = keyOf(f.key ?? f.id); f.points ??= 10; f.rarity ??= "common"; if (f.verdict === undefined) f.verdict = null; state.finds.set(f.key, f); }
-  state.guestCount = recs.filter(f => (f.owner || "guest") === "guest").length;
-  refreshAll();
-}
-let sessionQ = Promise.resolve();
-const reloadSession = () => (sessionQ = sessionQ.then(loadSession).catch(() => {}));
 async function loadSession(){
   if (!state.sb) return;
-  const { data } = await state.sb.auth.getSession(); const user = data?.session?.user || null;
-  const changed = (user?.id || null) !== (state.user?.id || null);
-  state.user = user;
-  if (user){ const { data:p } = await state.sb.from("profiles").select("username").eq("id", user.id).maybeSingle(); state.username = p?.username || null; }
+  const { data } = await state.sb.auth.getSession(); state.user = data?.session?.user || null;
+  if (state.user){ const { data:p } = await state.sb.from("profiles").select("username").eq("id", state.user.id).maybeSingle(); state.username = p?.username || null; }
   else state.username = null;
-  state.owner = user ? user.id : "guest";
-  if (changed){ await loadFinds(); if (user) restoreCloud().then(retryPending).catch(() => {}); }
-  renderRanger(); if ($("#tab-me").classList.contains("on")) renderAccount();
+  renderRanger();
 }
-// Bring this account's finds and photos onto this phone (new phone, or after switching accounts)
-async function restoreCloud(){
-  if (!state.user) return; const uid = state.user.id;
-  const { data, error } = await state.sb.from("finds").select("species_key,name,sci,grp,rarity,points,verdict,ai_note,photo_path,lat,lng,place,country,found_at").eq("user_id", uid);
-  if (error || !data || state.owner !== uid) return;
-  let added = 0;
-  for (const r of data){
-    const local = state.finds.get(r.species_key);
-    if (local){ if (local.verdict !== "pending"){ Object.assign(local, { points:r.points, verdict:r.verdict, note:r.ai_note || "", rarity:r.rarity, photo_path:r.photo_path }); await idb.put(local); } continue; }
-    let photo = null; if (r.photo_path){ try{ const d = await state.sb.storage.from("photos").download(r.photo_path); photo = d.data || null; }catch{} }
-    if (state.owner !== uid) return;
-    const rec = { id:`${uid}:${r.species_key}`, owner:uid, key:r.species_key, name:r.name, sci:r.sci || "", group:r.grp || "other", rarity:r.rarity, points:r.points,
-      verdict:r.verdict, note:r.ai_note || "", photo, photo_path:r.photo_path, lat:r.lat, lng:r.lng, place:r.place || "", country:r.country || "", at:r.found_at };
-    await idb.put(rec); state.finds.set(rec.key, rec); added++;
-  }
-  refreshAll();
-  if (added) toast(`Restored ${added} find${added === 1 ? "" : "s"} from your account`);
+async function syncFind(f){
+  if (!state.sb || !state.user) return;
+  try{ await state.sb.from("finds").upsert({ user_id:state.user.id, species_key:keyOf(f.key ?? f.id), name:String(f.name).slice(0,80), grp:f.group, rarity:f.rarity, points:Math.min(150, f.points || 0), country:f.country || null, found_at:f.at }, { onConflict:"user_id,species_key", ignoreDuplicates:true }); }catch{}
 }
-// Photos taken with no signal get checked later
-async function retryPending(){
-  for (const f of [...state.finds.values()]){
-    if (f.verdict !== "pending" || !state.user || f.owner !== state.user.id) continue;
-    const res = await verifyRec(f); if (res.ok) verdictToast(f, res.data); else if (/today's photo checks/.test(res.error)) break;
-  }
-  refreshAll();
-}
-// Move the guest finds on this phone into the signed-in account; each photo gets checked
-async function migrateGuest(){
-  if (!state.user || state.migrating) return;
-  const list = (await allRecs()).filter(f => (f.owner || "guest") === "guest");
-  if (!list.length) return;
-  state.migrating = { done:0, total:list.length, xp:0 }; renderAccount();
-  for (const g of list){
-    const key = keyOf(g.key ?? g.id);
-    if (!state.finds.has(key)){
-      const rec = { ...g, id:`${state.user.id}:${key}`, owner:state.user.id, key, verdict:"pending", points:0, rarity:g.rarity || "common" };
-      await saveRec(rec);
-      const res = await verifyRec(rec);
-      if (res.ok) state.migrating.xp += rec.points;
-    }
-    try{ await idb.del(g.id); }catch{} dropURL(g.id);
-    state.migrating.done++; renderAccount();
-  }
-  const m = state.migrating; state.migrating = null; state.guestCount = 0;
-  refreshAll(); renderAccount();
-  toast(`<span class="xpg">+${m.xp} XP</span><span>Moved ${m.done} guest find${m.done === 1 ? "" : "s"} into your account</span>`, 4500);
-}
-
+async function syncAll(){ for (const f of state.finds.values()) await syncFind(f); }
 function renderAccount(){
   const box = $("#account");
   if (!state.sb){
-    box.innerHTML = `<div class="label">Account</div><p class="hint">You're playing as a guest. Your XP, badges and photos are saved on this phone.</p><p class="hint">Usernames, leaderboards and photo checking switch on once the free account server is set up (see SETUP-ACCOUNTS.md).</p>`;
+    box.innerHTML = `<div class="label">Account</div><p class="hint">You're playing as a guest. Your XP, badges and photos are saved on this phone.</p><p class="hint">Usernames and leaderboards switch on once the free account server is set up (see SETUP-ACCOUNTS.md).</p>`;
     $("#meSub").textContent = "Playing as a guest on this phone."; return;
   }
   if (state.user){
-    const m = state.migrating;
-    const pendingN = [...state.finds.values()].filter(f => f.verdict === "pending").length;
     box.innerHTML = `<div class="label">Signed in</div><p style="margin:0;font-family:var(--font-display);font-weight:800;font-size:22px">${esc(state.username || "Ranger")}</p>
-      <p class="hint">Your finds and photos are saved to your account, so they follow you to a new phone. Photos are private. The leaderboard only shows usernames and XP.</p>
-      ${m ? `<div class="label">Moving guest finds: ${m.done} of ${m.total}</div><div class="progress"><span style="width:${Math.round(m.done / m.total * 100)}%"></span></div>`
-        : state.guestCount && !state.skipGuest ? `<div class="verdict">There ${state.guestCount === 1 ? "is 1 guest find" : `are ${state.guestCount} guest finds`} on this phone. Add ${state.guestCount === 1 ? "it" : "them"} to ${esc(state.username || "this account")}? Each photo will be checked by the species AI.</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="moveBtn" type="button">Add to my account</button><button class="btn soft" id="skipBtn" type="button">Not now</button></div>` : ""}
-      <div style="display:flex;gap:8px;flex-wrap:wrap">${pendingN ? `<button class="btn soft" id="retryBtn" type="button">Check ${pendingN} waiting photo${pendingN === 1 ? "" : "s"}</button>` : ""}<button class="btn soft" id="outBtn" type="button">Sign out</button></div>`;
+      <p class="hint">Your finds count toward the leaderboard. Photos stay private on your phone; only species names and points are shared.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn soft" id="syncBtn" type="button">Sync my finds</button><button class="btn soft" id="outBtn" type="button">Sign out</button></div>`;
     $("#meSub").textContent = "Your ranger account.";
-    $("#outBtn").onclick = async () => { await state.sb.auth.signOut(); await reloadSession(); renderAccount(); };
-    $("#moveBtn")?.addEventListener("click", () => migrateGuest());
-    $("#skipBtn")?.addEventListener("click", () => { state.skipGuest = true; renderAccount(); });
-    $("#retryBtn")?.addEventListener("click", async () => { $("#retryBtn").disabled = true; await retryPending(); renderAccount(); });
+    $("#outBtn").onclick = async () => { await state.sb.auth.signOut(); await loadSession(); renderAccount(); };
+    $("#syncBtn").onclick = async () => { $("#syncBtn").disabled = true; await syncAll(); $("#syncBtn").disabled = false; toast("Finds synced"); };
     return;
   }
   $("#meSub").textContent = "Play as a guest, or make a free account to join the leaderboard.";
@@ -1040,10 +905,10 @@ function renderAccount(){
       <input id="uName" placeholder="Username (3–20 letters, numbers or _)" autocomplete="username" autocapitalize="off" required>
       <input id="uPass" type="password" placeholder="Password (8+ characters)" autocomplete="current-password" required minlength="8">
       <div style="display:flex;gap:8px"><button class="btn" type="submit">Create account</button><button class="btn soft" type="button" id="inBtn">Sign in</button></div>
-      <p class="hint">No email needed. Your guest finds move into a new account automatically. Pick a username that isn't your real name, and write your password down because it can't be reset. Kids: ask a grown-up to help.</p>
+      <p class="hint">No email needed. Pick a username that isn't your real name, and write your password down because it can't be reset. Kids: ask a grown-up to help.</p>
       <p class="status" id="authMsg"></p>
     </form>`;
-  const msg = (t, err) => { const el = $("#authMsg"); el.textContent = t; el.classList.toggle("err", !!err); };
+  const msg = (t, err) => { const m = $("#authMsg"); m.textContent = t; m.classList.toggle("err", !!err); };
   const creds = () => ({ u: $("#uName").value.trim(), p: $("#uPass").value });
   $("#authForm").onsubmit = async e => { e.preventDefault(); const { u, p } = creds();
     if (!USER_RE.test(u)) return msg("Usernames use 3–20 letters, numbers or underscores.", true);
@@ -1053,16 +918,15 @@ function renderAccount(){
     if (taken) return msg("That username is taken. Try another.", true);
     const { data, error } = await state.sb.auth.signUp({ email: emailFor(u), password: p });
     if (error) return msg(/registered|exists/i.test(error.message) ? "That username is taken. Try another." : "Couldn't create the account: " + error.message, true);
-    if (!data.session) return msg("The server is asking for email confirmation. Turn off 'Confirm email' in Supabase (step 4 of the setup guide).", true);
+    if (!data.session) return msg("The server is asking for email confirmation. Turn off 'Confirm email' in Supabase (step 5 of the setup guide).", true);
     const { error:pe } = await state.sb.from("profiles").insert({ id: data.user.id, username: u });
     if (pe) return msg("Couldn't save that username. Try a different one.", true);
-    await reloadSession(); renderAccount(); toast(`Welcome, <b>${esc(u)}</b>!`);
-    migrateGuest();
+    await loadSession(); await syncAll(); renderAccount(); toast(`Welcome, <b>${esc(u)}</b>!`);
   };
   $("#inBtn").onclick = async () => { const { u, p } = creds(); if (!u || !p) return msg("Type your username and password.", true);
     msg("Signing in…"); const { error } = await state.sb.auth.signInWithPassword({ email: emailFor(u), password: p });
     if (error) return msg("Username or password doesn't match.", true);
-    state.skipGuest = false; await reloadSession(); renderAccount(); toast(`Welcome back, <b>${esc(state.username || u)}</b>!`); };
+    await loadSession(); await syncAll(); renderAccount(); toast(`Welcome back, <b>${esc(state.username || u)}</b>!`); };
 }
 $("#rankSeg").addEventListener("click", e => { const b = e.target.closest("button[data-r]"); if (!b) return; state.rankPeriod = b.dataset.r; $$("#rankSeg button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); renderRanks(); });
 async function renderRanks(){
@@ -1082,8 +946,9 @@ async function renderRanks(){
 /* ---------- start ---------- */
 (async () => {
   buildRadius();
-  await loadFinds();
-  if (state.sb){ await reloadSession(); state.sb.auth.onAuthStateChange(() => { setTimeout(reloadSession, 0); }); }
+  try{ for (const f of (await idb.all()) || []){ const k = keyOf(f.key ?? f.id); f.key = k; f.points ??= 10; f.rarity ??= "common"; state.finds.set(k, f); } }catch{}
+  drawFinds(); renderRanger();
+  if (state.sb){ loadSession().catch(() => {}); state.sb.auth.onAuthStateChange(() => { setTimeout(() => loadSession().catch(() => {}), 0); }); }
   if (state.loc){ saveLoc(state.loc); fitSearch(); search(); } else renderGrid();
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
