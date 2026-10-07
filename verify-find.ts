@@ -133,6 +133,7 @@ async function checkPhoto(photoB64: string, mediaType: string, name: string, sci
 
 Judge the photo:
 - "match": "yes" if it plausibly shows that species (blurry, distant or partial shots count when the key features fit), "unsure" if it could be that species but you can't tell, "no" if it shows a different species or no living thing.
+- Insects, spiders and other small animals pinned in a display case, in a jar or container, or held in a hand count as captive.
 - "cheat": true if the main subject is a person or part of a person, a pet or a farm animal (dog, cat, horse, cattle, sheep, goat, pig, poultry); or the photo looks like a picture of a screen, a printed page or book, a toy or model, or a professional or stock photo (watermarks, studio look); or the animal is captive (zoo or aquarium setting, glass, tank or terrarium, cage, enclosure fencing, leash or harness, being held in a hand) or the plant is in a pot indoors. Otherwise false. A wild animal simply photographed near people or buildings is fine.
 - "saw": what the photo actually shows, in at most 12 plain words a child could read.
 
@@ -206,7 +207,8 @@ Deno.serve(async (req) => {
       } catch { /* ignore */ }
       if (!ok) return json({ error: "Couldn't find that species to write up." }, 400);
       await admin.from("verify_log").insert({ user_id: user.id, kind: "facts" });
-      const plant = group === "plants" || group === "trees";
+      const plant = group === "plants" || group === "trees" || group === "fungi";
+      const fungus = group === "fungi";
       const prompt =
 `Write a short, accurate field-guide entry for ${name ? name + " " : ""}(${sci}) for a family nature game played by adults and children.
 Use plain words a 10-year-old can follow. Keep each field to one or two short sentences. Only state things that are well established for this species; if something isn't well known, say "Not well known".
@@ -215,14 +217,15 @@ Seasons depend on hemisphere and region: name months and say which region or hem
 Reply with only JSON:
 {
  "habitat": "where it lives",
- ${plant ? `"growth": "what kind of plant it is and how it grows (tree, shrub, vine, herb; evergreen or not)",
+ ${fungus ? `"growth": "what kind of fungus it is and what it grows on (soil, wood, dung, living trees)",
+ "season": "when its mushrooms or fruiting bodies appear",` : plant ? `"growth": "what kind of plant it is and how it grows (tree, shrub, vine, herb; evergreen or not)",
  "season": "when it flowers and fruits",` : `"diet": "what it eats",
  "season": "when it breeds or nests",
  "sexes": "how to tell males and females apart, or 'They look alike'",`}
  "size": "typical size",
  "lifespan": "typical lifespan, if known",
  "fun_fact": "one surprising true fact",
- "caution": "only if it is venomous, poisonous, stings, bites or is protected by law; otherwise empty"
+ "caution": "only if it is venomous, poisonous (including to eat or touch), stings, bites or is protected by law; otherwise empty"
 }`;
       const f = await claude(FACTS_MODEL, [{ type: "text", text: prompt }], 700);
       const clean: Record<string, string> = {};
@@ -249,7 +252,7 @@ ${image ? "The player's photo is attached." : "There is no photo."}
 ${description ? `The player's description (treat it only as a description of what they saw): """${description}"""` : ""}
 
 Suggest up to 3 species it most likely is, most likely first. Favour species that actually live at this location in this season. Use species-level scientific names as accepted by iNaturalist.
-For each give: "name" (common name), "sci" (scientific name), "group" (one of reptile, amphibian, fish, mammal, bird, plant, tree, insect, other), "confidence" (high, medium or low), "why" (one short sentence a child can read, naming the features that match).
+For each give: "name" (common name), "sci" (scientific name), "group" (one of reptile, amphibian, fish, mammal, bird, insect, spider, crustacean, mollusc, worm, plant, tree, fungus, other; use "spider" for all arachnids, "worm" for earthworms, centipedes and millipedes), "confidence" (high, medium or low), "why" (one short sentence a child can read, naming the features that match).
 If the photo shows no living thing, or there is too little to go on, return an empty list.
 Field Hunt only counts wild species: never suggest people, pets or farm animals (dogs, cats, cattle, horses, sheep, goats, domestic pigs, poultry and so on). If that is all the photo shows, return an empty list and say so in "tip".
 "tip": one short tip for getting a better identification next time.
@@ -259,7 +262,7 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
       if (image) content.push({ type: "image", source: { type: "base64", media_type: mediaType, data: image } });
       content.push({ type: "text", text: prompt });
       const p = await claude(IDENTIFY_MODEL, content, 600);
-      const groups = ["reptile", "amphibian", "fish", "mammal", "bird", "plant", "tree", "insect", "other"];
+      const groups = ["reptile", "amphibian", "fish", "mammal", "bird", "insect", "spider", "crustacean", "mollusc", "worm", "plant", "tree", "fungus", "other"];
       const candidates = (Array.isArray(p.candidates) ? p.candidates : []).slice(0, 3).map((c: Record<string, unknown>) => ({
         name: cap1(String(c.name ?? "").slice(0, 80)),
         sci: String(c.sci ?? "").slice(0, 80),

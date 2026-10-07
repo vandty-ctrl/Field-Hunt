@@ -26,7 +26,7 @@ A nature-hunting game for adults and kids. Find the wildlife and plants around y
 Open your GitHub Pages link in **Safari**, tap **Share → Add to Home Screen → Add**, then open Field Hunt and allow location.
 
 ## How to play
-- **Hunt:** Tap **Near me** or type any park or place in the world. Tick what to hunt for (reptiles, amphibians, fish, mammals, birds, plants, trees), choose a distance in km or miles, and tap **Start the hunt**.
+- **Hunt:** Tap **Near me** or type any park or place in the world. Tap **Hunt for** to choose groups in three sections: animals with backbones (reptiles, amphibians, fish, birds, mammals), bugs and other invertebrates (insects, spiders & kin, crustaceans, snails & shellfish, millipedes & worms), and plants & fungi (plants, trees, fungi). Each section has an **All** button. Then, choose a distance in km or miles, and tap **Start the hunt**.
 - **Field cards:** Each species is a card rated Common, Uncommon, Rare, Epic or Legendary, based on how rarely it's been recorded nearby. Rarer cards are worth more XP.
 - **Flip cards:** Tap any card, found or not, and it flips over to its field guide: taxonomy from kingdom to species, field notes (habitat, diet or growth, breeding or flowering season, size, male vs female, lifespan, a fun fact, and safety warnings), a "when to look" chart of sightings by month near you (plus flowering months for plants), and example photos of males and females. Tap the card again to flip back.
 - **Collect:** On the card, tap **I found it! Take a photo**. Bonus XP for your first find of the day and for exploring a new area.
@@ -34,7 +34,7 @@ Open your GitHub Pages link in **Safari**, tap **Share → Add to Home Screen �
 - **Identify something:** Don't know what it is? Tap **Identify something**, then snap or choose a photo, or describe it. The species AI suggests the likeliest matches for where you are, with reference photos. Tap **This is it** to add it to your cards and collect it. (Needs an account.)
 - **Add a species:** Know something lives there that isn't listed? Tap **+ Add a species you know is here**.
 - **Map:** Satellite map of recorded sightings, coloured by group. Your finds show as yellow dots. **Show on map** on any card shows just that species.
-- **Journal:** Your stats, 16 badges, and all your photos.
+- **Journal:** Your stats, 19 badges, and all your photos.
 - **Ranks:** Weekly and all-time leaderboards (needs accounts switched on).
 - **Me:** Create an account or sign in, and switch between km and miles.
 

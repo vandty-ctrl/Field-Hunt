@@ -34,6 +34,7 @@
   --danger:#b3361f;
   --r-common:#7b8a80; --r-uncommon:#2f9a56; --r-rare:#2f78c4; --r-epic:#8a4fc7; --r-legend:#d9921c;
   --reptile:#a5602a; --amphibian:#2e8a84; --fish:#2f68b0; --mammal:#a83c55; --bird:#7552a8; --plant:#4f8f2f; --tree:#6e5230; --other:#6b7a70;
+  --insect:#b58500; --arachnid:#4b5563; --crustacean:#cf4a33; --mollusc:#5f7f99; --worm:#9c6046; --fungus:#b0427a;
   --font-display:"Bricolage Grotesque","Avenir Next Condensed","Avenir Next",system-ui,sans-serif;
   --font-body:"Nunito","Avenir Next",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-latin:"Newsreader",Georgia,serif;
@@ -45,6 +46,7 @@
   --on-night:#eaf3ec; --on-night-muted:#8fae9b; --danger:#f08a72;
   --r-common:#93a399; --r-uncommon:#5cc983; --r-rare:#6aa9ec; --r-epic:#b386ee; --r-legend:#f2b445;
   --reptile:#dc955c; --amphibian:#62c7bf; --fish:#7aa9e6; --mammal:#ec8aa0; --bird:#b096e0; --plant:#93cc69; --tree:#c9a676; --other:#9db3a5;
+  --insect:#f0c23f; --arachnid:#aab4c3; --crustacean:#f2836c; --mollusc:#95b8d4; --worm:#d4997c; --fungus:#ea8cbf;
   color-scheme:dark}}
 
 *{box-sizing:border-box}
@@ -107,6 +109,18 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .label{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
 
 .groups{display:flex;flex-wrap:wrap;gap:8px}
+.gsum{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.gsum .ics{display:flex;flex:none}
+.gsum .ics span{width:28px;height:28px;border-radius:50%;background:var(--c);color:#fff;display:grid;place-items:center;margin-right:-7px;border:2px solid var(--paper)}
+.gsum .ics span svg{width:16px;height:16px}
+.gsum .txt{flex:1;min-width:0;font-weight:800;margin-left:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gsum .chg{color:var(--moss);font-weight:800;font-size:14px;flex:none}
+.gpicker{display:flex;flex-direction:column;gap:12px}
+.gsect{display:flex;flex-direction:column;gap:8px}
+.gsh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.gsh b{font-size:14px}
+.gsh small{display:block;color:var(--muted);font-size:12px;font-weight:700}
+.gsh button{border:0;background:none;color:var(--moss);font-weight:800;font-size:13px;padding:4px 2px}
 .gchip{position:relative}
 .gchip input{position:absolute;opacity:0;pointer-events:none}
 .gchip label{display:flex;align-items:center;gap:6px;border:2px solid var(--line);background:var(--card);border-radius:999px;padding:7px 12px 7px 9px;font-weight:800;font-size:14px;cursor:pointer;user-select:none;color:var(--muted)}
@@ -142,6 +156,7 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .found-tag svg{width:16px;height:16px}
 .r-common{--rc:var(--r-common)} .r-uncommon{--rc:var(--r-uncommon)} .r-rare{--rc:var(--r-rare)} .r-epic{--rc:var(--r-epic)} .r-legendary{--rc:var(--r-legend)}
 .g-reptiles{--c:var(--reptile)} .g-amphibians{--c:var(--amphibian)} .g-fish{--c:var(--fish)} .g-mammals{--c:var(--mammal)} .g-birds{--c:var(--bird)} .g-plants{--c:var(--plant)} .g-trees{--c:var(--tree)} .g-other{--c:var(--other)}
+.g-insects{--c:var(--insect)} .g-arachnids{--c:var(--arachnid)} .g-crustaceans{--c:var(--crustacean)} .g-molluscs{--c:var(--mollusc)} .g-worms{--c:var(--worm)} .g-fungi{--c:var(--fungus)}
 .empty{border:2px dashed var(--line);border-radius:16px;padding:22px;text-align:center;color:var(--muted);background:var(--card)}
 .more{grid-column:1/-1;justify-self:center}
 
@@ -331,7 +346,8 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
       <div class="choices hidden" id="choices"></div>
 
       <div class="label">Hunt for</div>
-      <div class="groups" id="groups"></div>
+      <button class="gsum" id="groupSum" type="button" aria-expanded="false" aria-controls="groupPicker"><span class="ics" id="groupIcons"></span><span class="txt" id="groupSumText"></span><span class="chg" id="groupChg">Change</span></button>
+      <div class="gpicker hidden" id="groupPicker"></div>
 
       <div class="ctrlrow">
         <label class="label" for="radius">Within</label>
@@ -463,6 +479,12 @@ const I = {
   birds:'<path d="M4 13c3 0 5-2 6.5-5.5 1 3.2 3.2 5 6 5l4.5-1.5-3 3.5c-2 2.6-4.6 3.8-8.2 3.8C6.8 18.3 5 16.6 4 13z"/><circle cx="16.5" cy="10.6" r=".6" fill="currentColor"/>',
   plants:'<path d="M5 19C5 10.5 10.5 5 20 4c0 9-5.5 15-15 15z"/><path d="M5 19l8.5-8.5"/>',
   trees:'<path d="M12 3l6 8.5h-3.6l4.6 6.5H5l4.6-6.5H6z"/><path d="M12 18v3"/>',
+  insects:'<ellipse cx="12" cy="14" rx="4.5" ry="6"/><path d="M12 8V20M9.5 5.5 12 8l2.5-2.5M7.5 11 3.5 9.5M7.5 15H3M8 18.5l-3.5 2M16.5 11l4-1.5M16.5 15H21M16 18.5l3.5 2"/>',
+  arachnids:'<circle cx="12" cy="13" r="3.4"/><circle cx="12" cy="8.2" r="1.8"/><path d="M8.8 11.5 4 8l-1 3M8.8 13.5 3.5 14l-1 3.5M9.5 15.8 6 20M15.2 11.5 20 8l1 3M15.2 13.5l5.3.5 1 3.5M14.5 15.8 18 20"/>',
+  crustaceans:'<ellipse cx="12" cy="14.5" rx="5.5" ry="3.8"/><path d="M7 12.5 4.5 9.5M4.5 9.5 3 6.5l3.5 1.5M17 12.5l2.5-3M19.5 9.5 21 6.5l-3.5 1.5M7.5 17 4.5 19M9.5 18.2 8 21M16.5 17l3 2M14.5 18.2 16 21"/><circle cx="10.2" cy="12.6" r=".5" fill="currentColor"/><circle cx="13.8" cy="12.6" r=".5" fill="currentColor"/>',
+  molluscs:'<path d="M3 18h13.5a4.5 4.5 0 0 0 4.5-4.5"/><circle cx="13.5" cy="11.5" r="5.5"/><path d="M13.5 11.5a2.4 2.4 0 1 0 2.4 2.4"/><path d="M5 18c0-3 1-5.5 3-6.8M4.5 15.5 3 11M6.5 13.5 6 9.5"/>',
+  worms:'<path d="M3 16c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/><path d="M5.5 14.5v-2M9 14.6v-2M12.5 17.4v2M16 17.4v2"/>',
+  fungi:'<path d="M3.5 12a8.5 6 0 0 1 17 0z"/><path d="M10 12v6a2 2 0 0 0 4 0v-6"/><circle cx="9" cy="8.6" r=".8" fill="currentColor"/><circle cx="14.5" cy="7.6" r=".8" fill="currentColor"/>',
   star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
   flame:'<path d="M12 3c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-4-1-6 1-8z"/>',
   compass:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
@@ -480,12 +502,27 @@ const GROUPS = {
   mammals:    { label:"Mammals",    one:"Mammal",    inat:"Mammalia",       gbif:[["Mammalia","CLASS"]] },
   birds:      { label:"Birds",      one:"Bird",      inat:"Aves",           gbif:[["Aves","CLASS"]] },
   plants:     { label:"Plants",     one:"Plant",     inat:"Plantae",        gbif:[["Plantae","KINGDOM"]] },
+  insects:    { label:"Insects",    one:"Insect",    inat:"Insecta",        gbif:[["Insecta","CLASS"]] },
+  arachnids:  { label:"Spiders & kin", one:"Arachnid", inat:"Arachnida",   gbif:[["Arachnida","CLASS"]] },
+  crustaceans:{ label:"Crustaceans", one:"Crustacean", inatNames:[["Crustacea","subphylum"]], gbif:[["Malacostraca","CLASS"],["Branchiopoda","CLASS"],["Thecostraca","CLASS"],["Hexanauplia","CLASS"],["Ostracoda","CLASS"]] },
+  molluscs:   { label:"Snails & shellfish", one:"Mollusc", inat:"Mollusca", gbif:[["Mollusca","PHYLUM"]] },
+  worms:      { label:"Millipedes & worms", one:"Myriapod or worm", inatNames:[["Myriapoda","subphylum"],["Annelida","phylum"]], gbif:[["Diplopoda","CLASS"],["Chilopoda","CLASS"],["Annelida","PHYLUM"]] },
+  fungi:      { label:"Fungi",      one:"Fungus",    inat:"Fungi",          gbif:[["Fungi","KINGDOM"]] },
   trees:      { label:"Trees",      one:"Tree",      families:["Pinaceae","Cupressaceae","Araucariaceae","Podocarpaceae","Fagaceae","Nothofagaceae","Betulaceae","Juglandaceae","Ulmaceae","Platanaceae","Magnoliaceae","Arecaceae","Casuarinaceae","Salicaceae","Sapindaceae","Myrtaceae","Moraceae","Lauraceae","Meliaceae","Dipterocarpaceae","Bignoniaceae"] },
   other:      { label:"Others",     one:"Wildlife" }
 };
-const ORDER = ["reptiles","amphibians","fish","mammals","birds","plants","trees"];
-const ICONIC = { Reptilia:"reptiles", Amphibia:"amphibians", Actinopterygii:"fish", Aves:"birds", Mammalia:"mammals", Plantae:"plants" };
-const GBIF_CLASS = { Reptilia:"reptiles", Squamata:"reptiles", Testudines:"reptiles", Crocodylia:"reptiles", Amphibia:"amphibians", Actinopterygii:"fish", Elasmobranchii:"fish", Aves:"birds", Mammalia:"mammals" };
+const SECTIONS = [
+  { id:"vert", title:"Animals with backbones", sub:"Vertebrates", groups:["reptiles","amphibians","fish","birds","mammals"] },
+  { id:"invert", title:"Bugs & other invertebrates", sub:"Animals without backbones", groups:["insects","arachnids","crustaceans","molluscs","worms"] },
+  { id:"plantfungi", title:"Plants & fungi", sub:"", groups:["plants","trees","fungi"] }
+];
+const ORDER = SECTIONS.flatMap(x => x.groups);
+const ICONIC = { Reptilia:"reptiles", Amphibia:"amphibians", Actinopterygii:"fish", Aves:"birds", Mammalia:"mammals", Plantae:"plants", Insecta:"insects", Arachnida:"arachnids", Mollusca:"molluscs", Fungi:"fungi" };
+const GBIF_CLASS = { Reptilia:"reptiles", Squamata:"reptiles", Testudines:"reptiles", Crocodylia:"reptiles", Amphibia:"amphibians", Actinopterygii:"fish", Elasmobranchii:"fish", Aves:"birds", Mammalia:"mammals",
+  Insecta:"insects", Arachnida:"arachnids", Malacostraca:"crustaceans", Branchiopoda:"crustaceans", Thecostraca:"crustaceans", Hexanauplia:"crustaceans", Ostracoda:"crustaceans",
+  Mollusca:"molluscs", Diplopoda:"worms", Chilopoda:"worms", Annelida:"worms", Fungi:"fungi" };
+const isPlantish = g => g === "plants" || g === "trees";
+const wildWord = g => isPlantish(g) ? "plants" : g === "fungi" ? "fungi" : "animals";
 
 /* ---------- rarity, points, levels ---------- */
 const RARITY = [
@@ -585,9 +622,11 @@ const map = L.map("map", { layers:[sat, labels], worldCopyJump:true }).setView([
 L.control.layers({ "Satellite":sat, "Street map":streets }, { "Place names":labels }, { position:"topright" }).addTo(map);
 const obsLayer = L.layerGroup().addTo(map), findsLayer = L.layerGroup().addTo(map), hereLayer = L.layerGroup().addTo(map);
 const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#2f6b4c";
-const GVAR = { reptiles:"--reptile", amphibians:"--amphibian", fish:"--fish", mammals:"--mammal", birds:"--bird", plants:"--plant", trees:"--tree", other:"--other" };
+const GVAR = { reptiles:"--reptile", amphibians:"--amphibian", fish:"--fish", mammals:"--mammal", birds:"--bird", plants:"--plant", trees:"--tree", other:"--other",
+  insects:"--insect", arachnids:"--arachnid", crustaceans:"--crustacean", molluscs:"--mollusc", worms:"--worm", fungi:"--fungus" };
 const groupColor = g => cssVar(GVAR[g] || "--other");
-$("#legend").innerHTML = ORDER.map(k => `<span class="g-${k}"><i></i>${GROUPS[k].label}</span>`).join("") + '<span><i style="background:#ffd23f"></i>Your photos</span><span><i style="background:transparent;border:3px solid #ffd23f"></i>Your sightings</span>';
+function renderLegend(){ $("#legend").innerHTML = ORDER.filter(k => state.groups.has(k)).map(k => `<span class="g-${k}"><i></i>${GROUPS[k].label}</span>`).join("") + '<span><i style="background:#ffd23f"></i>Your photos</span><span><i style="background:transparent;border:3px solid #ffd23f"></i>Your sightings</span>'; }
+renderLegend();
 
 function drawHere(){
   hereLayer.clearLayers(); if (!state.loc) return;
@@ -645,15 +684,38 @@ function choose(h){ $("#choices").classList.add("hidden"); $("#choices").innerHT
   saveLoc({ lat:+h.lat.toFixed(5), lng:+h.lng.toFixed(5), label:h.label, country:h.country }); fitSearch(); setStatus(""); search(); }
 
 /* ---------- group chips ---------- */
-$("#groups").innerHTML = ORDER.map(k => `<div class="gchip g-${k}"><input type="checkbox" id="g-${k}" value="${k}" ${state.groups.has(k) ? "checked" : ""}><label for="g-${k}">${ic(k)}${GROUPS[k].label}</label></div>`).join("");
-$("#groups").addEventListener("change", e => { if (e.target.checked) state.groups.add(e.target.value); else state.groups.delete(e.target.value); ls.set("fh-groups", [...state.groups]); });
+state.groups = new Set([...state.groups].filter(g => GROUPS[g]));
+function renderGroupSum(){
+  const sel = ORDER.filter(g => state.groups.has(g));
+  $("#groupIcons").innerHTML = sel.slice(0, 4).map(g => `<span class="g-${g}">${ic(g)}</span>`).join("");
+  const names = sel.map(g => GROUPS[g].label);
+  $("#groupSumText").textContent = !sel.length ? "Nothing picked yet" : sel.length === ORDER.length ? "Everything" : sel.length <= 2 ? names.join(", ") : `${sel.length} groups`;
+  renderLegend();
+}
+function renderPicker(){
+  $("#groupPicker").innerHTML = SECTIONS.map(x => `<div class="gsect"><div class="gsh"><div><b>${x.title}</b>${x.sub ? `<small>${x.sub}</small>` : ""}</div><button type="button" data-sec="${x.id}">${x.groups.every(g => state.groups.has(g)) ? "None" : "All"}</button></div>
+    <div class="groups">${x.groups.map(k => `<div class="gchip g-${k}"><input type="checkbox" id="g-${k}" value="${k}" ${state.groups.has(k) ? "checked" : ""}><label for="g-${k}">${ic(k)}${GROUPS[k].label}</label></div>`).join("")}</div></div>`).join("")
+    + `<button class="btn soft" type="button" id="groupDone">Done</button>`;
+}
+const saveGroups = () => { ls.set("fh-groups", [...state.groups]); renderGroupSum(); };
+$("#groupSum").addEventListener("click", () => { const p = $("#groupPicker"), open = p.classList.toggle("hidden") === false; $("#groupSum").setAttribute("aria-expanded", String(open)); $("#groupChg").textContent = open ? "Close" : "Change"; if (open) renderPicker(); });
+$("#groupPicker").addEventListener("change", e => { if (!e.target.matches("input[type=checkbox]")) return; if (e.target.checked) state.groups.add(e.target.value); else state.groups.delete(e.target.value); saveGroups(); renderPicker(); });
+$("#groupPicker").addEventListener("click", e => {
+  const b = e.target.closest("button[data-sec]");
+  if (b){ const x = SECTIONS.find(y => y.id === b.dataset.sec); const all = x.groups.every(g => state.groups.has(g)); x.groups.forEach(g => all ? state.groups.delete(g) : state.groups.add(g)); saveGroups(); renderPicker(); return; }
+  if (e.target.closest("#groupDone")){ $("#groupPicker").classList.add("hidden"); $("#groupSum").setAttribute("aria-expanded", "false"); $("#groupChg").textContent = "Change"; }
+});
+renderGroupSum();
 $("#searchBtn").addEventListener("click", () => search());
 
 /* ---------- data lookups ---------- */
-async function inatTreeIds(){
-  const c = ls.get("fh-tree-ids", null); if (c?.length) return c;
-  const ids = (await pool(GROUPS.trees.families, 4, async f => { try{ const r = await getJSON(`${INAT}/taxa?q=${f}&rank=family&per_page=5`); return (r.results || []).find(t => t.name === f)?.id || null; }catch{ return null; } })).filter(Boolean);
-  if (ids.length) ls.set("fh-tree-ids", ids); return ids;
+async function inatIds(g){
+  if (g === "trees"){ const c = ls.get("fh-tree-ids", null); if (c?.length) return c; }
+  const cache = ls.get("fh-inat-ids", {}); if (g !== "trees" && cache[g]?.length) return cache[g];
+  const list = g === "trees" ? GROUPS.trees.families.map(f => [f, "family"]) : (GROUPS[g].inatNames || []);
+  const ids = (await pool(list, 4, async ([name, rank]) => { try{ const r = await getJSON(`${INAT}/taxa?q=${encodeURIComponent(name)}&rank=${rank}&per_page=5`); return (r.results || []).find(t => t.name === name)?.id || null; }catch{ return null; } })).filter(Boolean);
+  if (ids.length){ if (g === "trees") ls.set("fh-tree-ids", ids); else { cache[g] = ids; ls.set("fh-inat-ids", cache); } }
+  return ids;
 }
 async function gbifKeys(g){
   const cache = ls.get("fh-gbif-keys", {}); if (cache[g]?.length) return cache[g];
@@ -675,10 +737,11 @@ async function search(){
   const { lat, lng } = state.loc, km = state.radiusKm;
   const groups = ORDER.filter(g => state.groups.has(g));
   try{
-    const tids = groups.includes("trees") ? await inatTreeIds() : [];
     const base = `lat=${lat}&lng=${lng}&radius=${km}&quality_grade=research&captive=false&locale=en`;
     const results = await Promise.all(groups.map(async g => {
-      const f = GROUPS[g].inat ? `iconic_taxa=${GROUPS[g].inat}` : (tids.length ? `taxon_id=${tids.join(",")}` : null);
+      let f = null;
+      if (GROUPS[g].inat) f = `iconic_taxa=${GROUPS[g].inat}`;
+      else { const ids = await inatIds(g); if (ids.length) f = `taxon_id=${ids.join(",")}`; }
       const gkeys = await gbifKeys(g).catch(() => []);
       const [counts, obs, gb] = await Promise.all([
         f ? getJSON(`${INAT}/observations/species_counts?${base}&${f}&per_page=60`).then(r => r.results || []).catch(() => []) : [],
@@ -703,7 +766,7 @@ async function search(){
       const tally = new Map();
       for (const r of gb){
         if (r.datasetKey === INAT_GBIF_DATASET || !r.species || !r.speciesKey || notWildRecord(r)) continue;
-        const grp = (g === "plants" || g === "trees") ? g : (GBIF_CLASS[r.class] || GBIF_CLASS[r.order] || g);
+        const grp = isPlantish(g) ? g : (GBIF_CLASS[r.class] || GBIF_CLASS[r.order] || GBIF_CLASS[r.phylum] || GBIF_CLASS[r.kingdom] || g);
         const t = tally.get(r.speciesKey) || { gbifKey:r.speciesKey, sci:r.species, name:r.vernacularName ? cap(r.vernacularName) : r.species, group:grp, photo:"", count:0, sources:["GBIF"] };
         t.count++;
         if (!t.photo && r.media?.[0]?.identifier && /^https:/.test(r.media[0].identifier)) t.photo = r.media[0].identifier;
@@ -882,7 +945,7 @@ async function loadFacts(s){
 function loadGuide(s){
   if (guideCache.has(s.key)) return guideCache.get(s.key);
   const p = (async () => {
-    const loc = state.loc, plant = s.group === "plants" || s.group === "trees", id = s.inatId;
+    const loc = state.loc, plant = isPlantish(s.group) || s.group === "fungi", id = s.inatId;
     const g = { tax:[], summary:"", status:"", months:null, where:"", flower:null, male:null, female:null, facts:null, note:"" };
     const jobs = [loadFacts(s).then(x => { g.facts = x.facts; g.note = x.note || ""; })];
     if (id){
@@ -914,8 +977,8 @@ const peakMonths = m => { const v = MONTHS.map((_, i) => +(m?.[i + 1] || 0)), mx
 const monthBars = (m, cls) => { const v = MONTHS.map((_, i) => +(m?.[i + 1] || 0)), mx = Math.max(1, ...v);
   return `<div class="bars ${cls}" role="img" aria-label="Records by month, peak in ${peakMonths(m)}">${v.map((x, i) => `<span><i style="height:${Math.round(x / mx * 100)}%"></i><b>${MONTHS[i][0]}</b></span>`).join("")}</div>`; };
 function guideHTML(s, g){
-  const plant = s.group === "plants" || s.group === "trees", F = g.facts || {};
-  const rows = plant ? [["Habitat","habitat"],["How it grows","growth"],["Flowering & fruiting","season"],["Size","size"],["Lifespan","lifespan"],["Fun fact","fun_fact"]]
+  const plant = isPlantish(s.group) || s.group === "fungi", F = g.facts || {};
+  const rows = plant ? [["Habitat","habitat"],["How it grows","growth"],[s.group === "fungi" ? "When it fruits" : "Flowering & fruiting","season"],["Size","size"],["Lifespan","lifespan"],["Fun fact","fun_fact"]]
                      : [["Habitat","habitat"],["Diet","diet"],["Breeding season","season"],["Size","size"],["Male vs female","sexes"],["Lifespan","lifespan"],["Fun fact","fun_fact"]];
   const facts = rows.filter(([, k]) => F[k] && !/^not well known\.?$/i.test(F[k]));
   return `<div class="ghead"><span class="gname">${esc(GROUPS[s.group]?.one || "Wildlife")} · Field guide</span><b class="gnm">${esc(s.name)}</b><i class="sci">${esc(s.sci)}</i></div>
@@ -978,7 +1041,7 @@ function refreshAll(){ drawFinds(); renderGrid(); renderRanger(); if ($("#tab-jo
 // Is this spot inside a zoo, aquarium, wildlife park, pet shop or shelter (or, for plants, a botanical garden or nursery)? Uses OpenStreetMap.
 async function captiveSpot(pos, group){
   if (!pos) return null;
-  const plant = group === "plants" || group === "trees", P = `${pos.lat},${pos.lng}`;
+  const plant = isPlantish(group), P = `${pos.lat},${pos.lng}`;
   const q = `[out:json][timeout:8];is_in(${P})->.a;(area.a[tourism~"^(zoo|aquarium)$"];area.a[zoo];area.a[attraction=animal];area.a[shop=pet];area.a[amenity~"^(animal_shelter|animal_boarding)$"];${plant ? `area.a[leisure=garden]["garden:type"=botanical];area.a[landuse=plant_nursery];area.a[shop=garden_centre];` : ""})->.inside;.inside out tags 3;(nwr(around:120,${P})[tourism~"^(zoo|aquarium)$"];nwr(around:60,${P})[shop=pet];nwr(around:60,${P})[amenity~"^(animal_shelter|animal_boarding)$"];);out tags 3;`;
   for (const ep of ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]){
     try{
@@ -994,7 +1057,7 @@ async function captiveSpot(pos, group){
   }
   return null;
 }
-const captiveNote = (spot, group) => `taken inside ${spot}. Only wild ${group === "plants" || group === "trees" ? "plants" : "animals"} count`;
+const captiveNote = (spot, group) => `taken inside ${spot}. Only wild ${wildWord(group)} count`;
 
 function guestScore(s, pos, half){
   const r = rarityOf(s), base = half ? Math.round(r.pts / 2) : r.pts, parts = [`${r.label}${half ? " sighting" : ""} +${base}`]; let points = base;
@@ -1126,7 +1189,7 @@ async function logSighting(key, userNote){
       const near = state.loc && kmBetween(pos, state.loc) <= state.radiusKm + 2;
       const spot = await captiveSpot(pos, s.group);
       if (spot){
-        Object.assign(rec, { verdict:"no", points:0, note:`This spot is inside ${spot}. Only wild ${s.group === "plants" || s.group === "trees" ? "plants" : "animals"} count` });
+        Object.assign(rec, { verdict:"no", points:0, note:`This spot is inside ${spot}. Only wild ${wildWord(s.group)} count` });
         await saveRec(rec); refreshAll(); toast(`<span class="xpg">0 XP</span><span>${esc(rec.note)}.</span>`, 5500);
       } else if (known && near){
         const { points, parts } = guestScore(s, pos, true);
@@ -1143,7 +1206,8 @@ async function logSighting(key, userNote){
 }
 
 /* ---------- identify ---------- */
-const GROUP_FROM_AI = { reptile:"reptiles", amphibian:"amphibians", fish:"fish", mammal:"mammals", bird:"birds", plant:"plants", tree:"trees" };
+const GROUP_FROM_AI = { reptile:"reptiles", amphibian:"amphibians", fish:"fish", mammal:"mammals", bird:"birds", plant:"plants", tree:"trees",
+  insect:"insects", spider:"arachnids", crustacean:"crustaceans", mollusc:"molluscs", worm:"worms", fungus:"fungi" };
 const idState = { file:null, blob:null, url:"", results:[] };
 const blobToB64 = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = rej; r.readAsDataURL(b); });
 function openIdentify(){
@@ -1241,6 +1305,9 @@ const BADGES = [
   { id:"paws",     name:"Paw Prints",      desc:"3 mammals",                c:"--mammal",    icon:"mammals",    t:x => x.by("mammals") >= 3 },
   { id:"birder",   name:"Birder",          desc:"10 birds",                 c:"--bird",      icon:"birds",      t:x => x.by("birds") >= 10 },
   { id:"botanist", name:"Botanist",        desc:"10 plants",                c:"--plant",     icon:"plants",     t:x => x.by("plants") >= 10 },
+  { id:"bugs",     name:"Bug Hunter",      desc:"5 insects or spiders",     c:"--insect",    icon:"insects",    t:x => x.by("insects") + x.by("arachnids") >= 5 },
+  { id:"pool",     name:"Rock-pool Ranger", desc:"3 crustaceans or molluscs", c:"--crustacean", icon:"crustaceans", t:x => x.by("crustaceans") + x.by("molluscs") >= 3 },
+  { id:"fungi",    name:"Fungi Finder",    desc:"3 fungi",                  c:"--fungus",    icon:"fungi",      t:x => x.by("fungi") >= 3 },
   { id:"trees",    name:"Tree Hugger",     desc:"5 trees",                  c:"--tree",      icon:"trees",      t:x => x.by("trees") >= 5 },
   { id:"rare",     name:"Rare Find",       desc:"A Rare card or better",    c:"--r-rare",    icon:"gem",        t:x => x.rare >= 1 },
   { id:"legend",   name:"Legendary",       desc:"A Legendary card",         c:"--r-legend",  icon:"star",       t:x => x.legend >= 1 },
