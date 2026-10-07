@@ -47,6 +47,12 @@ Accounts use only a username and password. No email is collected, which keeps ki
 
 ---
 
+## Part B: Anthropic (the photo checker) — optional
+
+**You can skip Part B and Part C's step 7.** Without an Anthropic key nothing is ever charged: photos are checked by location instead (the species must have been recorded within 10 km of where the photo was taken, plus the zoo check and the reused-photo check), Identify is hidden, and field notes come from Wikipedia. You still need step 8 (deploy the `verify-find` function), because it scores photos and sightings.
+
+To switch the AI on later: do steps 6 and 7, then edit `config.js` on GitHub and change `aiFeatures: false` to `aiFeatures: true`.
+
 ## Part B: Anthropic (the photo checker)
 
 ### 6. Get an API key

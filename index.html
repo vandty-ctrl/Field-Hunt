@@ -214,6 +214,8 @@ main{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .verdict.sighted{border-color:#2f78c4} .verdict.unconfirmed{border-color:var(--danger)}
 .toolrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .toolrow .btn{white-space:normal;line-height:1.2}
+.toolrow.one{grid-template-columns:1fr}
+.vchip.located{background:var(--r-uncommon)} .verdict.located{border-color:var(--r-uncommon)}
 .sightpanel{display:flex;flex-direction:column;gap:8px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px}
 .sightpanel textarea,.idpanel textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px;font:inherit;resize:vertical;min-height:64px}
 .idpanel{display:flex;flex-direction:column;gap:10px}
@@ -596,6 +598,8 @@ const state = {
   owner: "guest", guestCount: 0, skipGuest: false, migrating: null
 };
 const keyOf = x => String(x);
+// AI features (Identify, AI field notes, AI photo checks) stay off unless config.js says aiFeatures: true
+const AI_FEATURES = (window.FIELD_HUNT_CONFIG || {}).aiFeatures === true;
 
 // People, pets and farm animals never count: Field Hunt is for wild species only.
 const NOT_WILD = ["homo","felis catus","felis silvestris catus","canis familiaris","canis lupus familiaris","bos taurus","bos indicus","bos grunniens","bubalus bubalis",
@@ -642,7 +646,7 @@ const dropURL = id => { const k = String(id); if (urls.has(k)){ URL.revokeObject
 const isGot = f => !!f && f.verdict !== "no" && f.verdict !== "unconfirmed" && !isNotWild(f.sci, f.name);
 const thumbURL = f => findURL(f) || f?.refPhoto || "";
 const isSighting = f => !!f && f.kind === "sighting" && !f.photo;
-const VERDICT = { yes:"Verified", unsure:"Half points", no:"No match", pending:"Checking…", sighted:"Sighted", unconfirmed:"Unconfirmed" };
+const VERDICT = { yes:"Verified", unsure:"Half points", no:"No match", pending:"Checking…", sighted:"Sighted", unconfirmed:"Unconfirmed", located:"Location-checked" };
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
 
 /* ---------- toasts & status ---------- */
@@ -1176,17 +1180,17 @@ const sum12 = m => m ? Object.values(m).reduce((a, b) => a + (+b || 0), 0) : 0;
 async function loadFacts(s){
   const k = s.sci.toLowerCase(); const local = ls.get("fh-facts", {});
   if (local[k] && (+local[k].v || 1) >= FACTS_V) return { facts: local[k] };
-  if (!state.sb) return local[k] ? { facts: local[k] } : { facts:null, note:"More field notes (habitat, diet, seasons) switch on once the account server is set up." };
+  if (!state.sb) return local[k] ? { facts: local[k] } : { facts:null, note:"" };
   try{
     const { data } = await state.sb.from("species_facts").select("facts").eq("sci", k).maybeSingle();
     let facts = data?.facts || null;
-    if ((!facts || (+facts.v || 1) < FACTS_V) && state.user){
+    if ((!facts || (+facts.v || 1) < FACTS_V) && state.user && AI_FEATURES){
       const { data:d, error } = await state.sb.functions.invoke("verify-find", { body:{ mode:"facts", sci:s.sci, name:s.name, group:s.group, inat_id: s.inatId ? String(s.inatId) : "" } });
       if (!error && d?.facts) facts = d.facts;
     }
     if (facts){ local[k] = facts; const ks = Object.keys(local); if (ks.length > 300) delete local[ks[0]]; ls.set("fh-facts", local); return { facts }; }
     if (local[k]) return { facts: local[k] };
-    return { facts:null, note: state.user ? "Couldn't load the field notes right now. Flip again later." : "Sign in (Me tab) to unlock field notes: habitat, diet, seasons and more." };
+    return { facts:null, note: !AI_FEATURES ? "" : state.user ? "Couldn't load the field notes right now. Flip again later." : "Sign in (Me tab) to unlock field notes: habitat, diet, seasons and more." };
   }catch{ return local[k] ? { facts: local[k] } : { facts:null, note:"Couldn't load the field notes right now." }; }
 }
 /* Wikipedia: free notes for every player, no setup needed (CC BY-SA) */
@@ -1313,7 +1317,7 @@ function whereSection(s, g){
     ${rows.length ? `<dl class="facts">${rows.map(([l, v]) => `<div><dt>${l}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl>` : ""}
     ${fromWiki ? `<p class="tiny">${F.v ? "Some notes" : "Notes"} from <a href="${esc(W.url)}" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA).</p>` : ""}
     ${g.closest ? `<div class="closest">${PIN}<span>${closestText(g.closest)}. Tap Show on map for every spot.</span></div>` : ""}
-    ${!ok(F.microhabitat) ? `<p class="hint">${!state.sb ? "Exact spots, signs and spotting tips come from the species AI, which switches on with the account server." : state.user ? "Exact spots, signs and spotting tips will appear here." : "Sign in (Me tab) to unlock exact spots, signs and spotting tips from the species AI."}</p>` : ""}
+    ${!ok(F.microhabitat) && AI_FEATURES ? `<p class="hint">${!state.sb ? "Exact spots, signs and spotting tips come from the species AI, which switches on with the account server." : state.user ? "Exact spots, signs and spotting tips will appear here." : "Sign in (Me tab) to unlock exact spots, signs and spotting tips from the species AI."}</p>` : ""}
   </div>`;
 }
 function sexingSection(s, g){
@@ -1328,7 +1332,7 @@ function sexingSection(s, g){
     ${S.seasonal ? `<p class="mini"><b>Breeding season:</b> ${esc(S.seasonal)}</p>` : ""}
     ${g.juv || S.juveniles ? `<div class="juv">${g.juv ? `<img src="${esc(g.juv.url)}" alt="${juvLabel} ${esc(s.name)}" loading="lazy">` : `<div class="ph0"></div>`}<div><b>${juvLabel}</b>${S.juveniles ? `<p>${esc(S.juveniles)}</p>` : ""}<small>${g.juv ? esc(g.juv.by) : "No tagged photo yet"}</small></div></div>` : ""}
     ${!hasAI ? (W.sexing?.length ? `<ul class="wsx">${W.sexing.map(x => `<li>${esc(x)}</li>`).join("")}</ul><p class="tiny">From <a href="${esc(W.url)}" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA).</p>`
-        : F.sexes ? `<p class="mini">${esc(F.sexes)}</p>` : `<p class="hint">No notes yet on telling the sexes apart${!state.user && state.sb ? ". Sign in to unlock the species AI's ID guide" : ""}.</p>`)
+        : F.sexes ? `<p class="mini">${esc(F.sexes)}</p>` : `<p class="hint">No notes yet on telling the sexes apart${!state.user && state.sb && AI_FEATURES ? ". Sign in to unlock the species AI's ID guide" : ""}.</p>`)
       : `<p class="tiny">ID guide written by AI. Photos from iNaturalist, credited above.</p>`}
   </div>`;
 }
@@ -1388,7 +1392,9 @@ function verdictBox(f){
   if (!f || !f.verdict) return f ? `<div class="verdict">Guest find, not checked yet. Make an account and it gets checked by the species AI.</div>` : "";
   if (f.verdict === "pending") return `<div class="verdict">Your ${isSighting(f) ? "sighting" : "photo"} is waiting to be checked. It will be checked next time you have signal.</div>`;
   if (f.verdict === "sighted") return `<div class="verdict sighted">Sighting confirmed by location${f.note ? `: ${esc(f.note)}` : ""}. Add a photo for full points.</div>`;
-  if (f.verdict === "unconfirmed") return `<div class="verdict unconfirmed">Sighting not confirmed${f.note ? `: ${esc(f.note)}` : ""}. A photo can still count it.</div>`;
+  if (f.verdict === "located") return `<div class="verdict located">Checked by location${f.note ? `: ${esc(f.note.replace(/^Location-checked:\s*/, ""))}` : ""}.</div>`;
+  if (f.verdict === "unconfirmed") return isSighting(f) ? `<div class="verdict unconfirmed">Sighting not confirmed${f.note ? `: ${esc(f.note)}` : ""}. A photo can still count it.</div>`
+    : `<div class="verdict unconfirmed">Photo not counted${f.note ? `: ${esc(f.note)}` : ""}.</div>`;
   if (f.verdict === "yes") return `<div class="verdict yes">Verified by the species AI${f.note ? `: ${esc(f.note)}` : ""}</div>`;
   if (f.verdict === "unsure") return `<div class="verdict unsure">Half points. The AI wasn't sure${f.note ? `. It saw: ${esc(f.note)}` : ""}. Retake a clearer photo to try for full points.</div>`;
   if (isNotWild(f.sci, f.name)) return `<div class="verdict no">${NOT_WILD_MSG}</div>`;
@@ -1463,12 +1469,14 @@ async function verifyRec(rec){
 const aN = w => (/^[aeiou]/i.test(w) ? "an " : "a ") + w;
 function verdictToast(rec, data){
   const n = esc(rec.name);
+  const parts = (data.parts || []).length ? `<br><small style="font-weight:700;opacity:.8">${esc(data.parts.join(" · "))}</small>` : "";
   if (data.rescored === false) return toast(isSighting(rec) ? "Already on your list" : "Photo updated");
-  if (data.kept) return toast(`<span class="xpg">0 XP</span><span>${data.note ? esc(data.note) + ". " : ""}That photo didn't match, but your sighting still counts.</span>`, 5500);
+  if (data.kept) return toast(`<span class="xpg">0 XP</span><span>${data.note ? esc(data.note) + ". " : ""}That photo couldn't be counted, but your sighting still counts.</span>`, 5500);
+  if (data.verdict === "located") return toast(`<span class="xpg">+${data.points} XP</span><span>${n} collected! Checked by location.${parts}</span>`, 4500);
+  if (data.verdict === "unconfirmed" && !isSighting(rec)) return toast(`<span class="xpg">0 XP</span><span>${esc(data.note || "No records nearby")}. It can't be counted here yet.</span>`, 5500);
   if (data.verdict === "sighted") return toast(`<span class="xpg">+${data.points} XP</span><span>${n} sighting confirmed!<br><small style="font-weight:700;opacity:.8">${esc((data.parts || []).join(" · "))}</small></span>`, 4500);
   if (data.verdict === "no" && isSighting(rec)) return toast(`<span class="xpg">0 XP</span><span>${esc(data.note || "Sighting not counted")}.</span>`, 5500);
   if (data.verdict === "unconfirmed") return toast(`<span class="xpg">0 XP</span><span>${esc(data.note || "No records nearby")}. Add a photo to count it.</span>`, 5500);
-  const parts = (data.parts || []).length ? `<br><small style="font-weight:700;opacity:.8">${esc(data.parts.join(" · "))}</small>` : "";
   if (data.verdict === "yes") toast(`<span class="xpg">+${data.points} XP</span><span>${n} verified!${parts}</span>`, 4200);
   else if (data.verdict === "unsure") toast(`<span class="xpg">+${data.points} XP</span><span>Half points: the AI wasn't sure it's ${aN(n)}.${parts}</span>`, 5000);
   else toast(`<span class="xpg">0 XP</span><span>${data.note ? esc(data.note) : `That doesn't look like ${aN(n)}`}. Try another photo.</span>`, 5500);
@@ -1593,6 +1601,7 @@ function openIdentify(){
   $("#idGo")?.addEventListener("click", runIdentify);
 }
 $("#idBtn").addEventListener("click", openIdentify);
+if (!AI_FEATURES){ $("#idBtn").classList.add("hidden"); $("#idBtn").parentElement.classList.add("one"); }
 $("#idfile").addEventListener("change", async () => {
   const f = $("#idfile").files?.[0]; if (!f) return;
   idState.file = f; idState.blob = await shrink(f);

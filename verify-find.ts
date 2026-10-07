@@ -12,11 +12,14 @@ import { encodeBase64 } from "jsr:@std/encoding@1/base64";
 const MODEL = Deno.env.get("VISION_MODEL") ?? "claude-haiku-4-5-20251001";
 const IDENTIFY_MODEL = Deno.env.get("IDENTIFY_MODEL") ?? "claude-sonnet-5-5";
 const DAILY_CHECKS = Number(Deno.env.get("DAILY_CHECKS") ?? 80);
-const SIGHTING_KM = 10;     // a sighting is confirmed if the species was recorded within this distance
+const SIGHTING_KM = 10;
+// The AI only runs if you've added an ANTHROPIC_API_KEY secret (and haven't set AI_FEATURES to "off").
+// Without it, nothing is charged: photos are checked by location instead, and Identify and AI field notes are off.
+const AI_ON = !!Deno.env.get("ANTHROPIC_API_KEY") && (Deno.env.get("AI_FEATURES") ?? "on").toLowerCase() !== "off";     // a sighting is confirmed if the species was recorded within this distance
 const MAX_GPS_ERROR_M = 1000;
 const FACTS_MODEL = Deno.env.get("FACTS_MODEL") ?? "claude-haiku-4-5-20251001";
 const DAILY_FACTS = Number(Deno.env.get("DAILY_FACTS") ?? 150);
-const FACTS_VERSION = 2;
+const FACTS_VERSION = 3;
 const NEAR_TAGS = ["water's edge", "ponds & lakes", "streams & rivers", "wetlands & mud", "reeds & rushes", "rock pools & shore",
   "under logs", "under rocks", "leaf litter", "dead wood", "tree bark", "tree canopy", "shrubs & hedges", "grass & meadows",
   "flowers", "sand & dunes", "rock walls & crevices", "soil & burrows", "caves", "buildings & walls", "open sky", "forest floor", "forest edges", "dung"];
@@ -184,8 +187,8 @@ Deno.serve(async (req) => {
     const place = String(b.place ?? "").slice(0, 120);
     const tz = Math.min(840, Math.max(-840, Number(b.tz) || 0)); // minutes, as from Date.getTimezoneOffset()
 
-    const needsAI = mode !== "sighting";
-    if (needsAI && !Deno.env.get("ANTHROPIC_API_KEY")) return json({ error: "The species AI isn't set up yet (missing ANTHROPIC_API_KEY)." }, 503);
+    if ((mode === "identify" || mode === "facts") && !AI_ON) return json({ error: "The species AI is switched off.", code: "ai_off" }, 503);
+    const needsAI = AI_ON && mode !== "sighting";
     if (needsAI) {
       const since = new Date(Date.now() - 864e5).toISOString();
       const k = mode === "facts" ? "facts" : "check";
@@ -234,7 +237,15 @@ Reply with only JSON:
  "season": "when its mushrooms or fruiting bodies appear",` : plant ? `"growth": "what kind of plant it is and how it grows (tree, shrub, vine, herb; evergreen or not)",
  "season": "when it flowers and fruits",` : `"diet": "what it eats",
  "season": "when it breeds or nests",
- "sexes": "how to tell males and females apart, or 'They look alike'",`}
+ "sexes": "one sentence: how to tell males and females apart, or 'They look alike'",
+ "sexing": {
+   "difficulty": "easy, moderate, hard, or not possible by eye",
+   "male": "what adult males look like: colours, patterns, size and body features (crest, horns, spurs, tail shape, throat patch, eye colour, pores and so on)",
+   "female": "what adult females look like, in the same detail",
+   "key_differences": ["up to 5 short, specific visual clues a person can check in the field or in a photo, e.g. 'Males have a bright blue throat in spring', 'Females are about a third bigger'"],
+   "juveniles": "what young ones look like and when they can be told apart",
+   "seasonal": "breeding-season changes in colour or shape, or empty if none"
+ },`}
  "size": "typical size",
  "lifespan": "typical lifespan, if known",
  "fun_fact": "one surprising true fact",
@@ -247,7 +258,7 @@ Reply with only JSON:
  }
 }
 Be accurate and do not exaggerate: most species are harmless, and only well-documented risks to people count.`;
-      const f = await claude(FACTS_MODEL, [{ type: "text", text: prompt }], 1400);
+      const f = await claude(FACTS_MODEL, [{ type: "text", text: prompt }], 1900);
       const clean: Record<string, string> = {};
       for (const k of ["habitat", "growth", "diet", "season", "sexes", "size", "lifespan", "fun_fact", "caution", "microhabitat", "best_time", "habits", "signs", "weather", "spot_tip"]) {
         if (typeof f[k] === "string" && f[k].trim()) clean[k] = f[k].trim().slice(0, 300);
@@ -262,6 +273,16 @@ Be accurate and do not exaggerate: most species are harmless, and only well-docu
       } : null;
       if (!Object.keys(clean).length) return json({ error: "Couldn't write the field guide right now." }, 502);
       const out: Record<string, unknown> = { ...clean, v: FACTS_VERSION }; if (danger) out.danger = danger;
+      const sx = f.sexing && typeof f.sexing === "object" ? f.sexing : null;
+      if (sx) {
+        const str = (v: unknown, n = 300) => typeof v === "string" ? v.trim().slice(0, n) : "";
+        const sexing: Record<string, unknown> = {
+          difficulty: ["easy", "moderate", "hard", "not possible by eye"].includes(String(sx.difficulty)) ? String(sx.difficulty) : "",
+          male: str(sx.male, 400), female: str(sx.female, 400), juveniles: str(sx.juveniles), seasonal: str(sx.seasonal),
+          key_differences: (Array.isArray(sx.key_differences) ? sx.key_differences : []).map((x: unknown) => str(x, 160)).filter(Boolean).slice(0, 5),
+        };
+        if (sexing.male || sexing.female || (sexing.key_differences as string[]).length) out.sexing = sexing;
+      }
       const near = (Array.isArray(f.near) ? f.near : []).map((t: unknown) => String(t).toLowerCase().trim()).filter((t: string) => NEAR_TAGS.includes(t)).slice(0, 6);
       if (near.length) out.near = near;
       if (["diurnal", "nocturnal", "crepuscular", "cathemeral"].includes(String(f.activity))) out.activity = String(f.activity);
@@ -365,10 +386,10 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
     if (!photoPath.startsWith(user.id + "/")) return json({ error: "That request was missing details." }, 400);
 
     // Already verified with a photo: just swap the photo, no re-scoring
-    if (prev?.verdict === "yes") {
+    if (prev?.verdict === "yes" || prev?.verdict === "located") {
       await admin.from("finds").update({ photo_path: photoPath, kind: "photo" }).eq("id", prev.id);
       if (prev.photo_path && prev.photo_path !== photoPath) await admin.storage.from("photos").remove([prev.photo_path]);
-      return json({ verdict: "yes", note: prev.ai_note ?? "", points: prev.points, rarity: prev.rarity, parts: [], photo_path: photoPath, rescored: false });
+      return json({ verdict: prev.verdict, note: prev.ai_note ?? "", points: prev.points, rarity: prev.rarity, parts: [], photo_path: photoPath, rescored: false });
     }
 
     const { data: blob, error: dErr } = await admin.storage.from("photos").download(photoPath);
@@ -377,7 +398,7 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
     const mediaType = ["image/jpeg", "image/png", "image/webp"].includes(blob.type) ? blob.type : "image/jpeg";
     const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))).map((x) => x.toString(16).padStart(2, "0")).join("");
 
-    await admin.from("verify_log").insert({ user_id: user.id });
+    if (AI_ON) await admin.from("verify_log").insert({ user_id: user.id });
 
     let verdict = "no", note = "";
     const { data: dup } = await admin.from("finds").select("id").eq("photo_hash", hash).neq("id", prev?.id ?? -1).limit(1);
@@ -386,6 +407,13 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
       note = "This photo was already used for another find.";
     } else if (captive) {
       note = `This photo was taken inside ${captive}. Only wild ${group === "plants" || group === "trees" ? "plants" : "animals"} count.`;
+    } else if (!AI_ON) {
+      // No AI: check the photo by location instead (the species must have been recorded near where it was taken)
+      const near = await nearbyCount(key, sci, lat, lng, SIGHTING_KM);
+      if (lat == null || lng == null) { verdict = "unconfirmed"; note = "No GPS position with this photo, so it couldn't be checked"; }
+      else if (near == null) return json({ error: "Couldn't reach the species records to check the location. Try again in a moment." }, 503);
+      else if (near > 0) { verdict = "located"; note = `Location-checked: ${near} record${near === 1 ? "" : "s"} within ${SIGHTING_KM} km`; }
+      else { verdict = "unconfirmed"; note = `No records of this species within ${SIGHTING_KM} km of where the photo was taken`; }
     } else {
       const ai = await checkPhoto(encodeBase64(bytes), mediaType, name, sci, group, place);
       verdict = ai.cheat ? "no" : ai.match;
@@ -393,7 +421,7 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
     }
 
     // A failed photo never wipes out a confirmed sighting
-    if (verdict === "no" && prev?.verdict === "sighted") {
+    if ((verdict === "no" || verdict === "unconfirmed") && prev?.verdict === "sighted") {
       await admin.storage.from("photos").remove([photoPath]);
       return json({ verdict: "no", kept: "sighted", note, points: prev.points, rarity: prev.rarity, parts: [], photo_path: null, rescored: true });
     }
@@ -402,8 +430,8 @@ Reply with only JSON: {"candidates":[{"name":"","sci":"","group":"","confidence"
     const rar = rarityFor(rarCount);
     const parts: string[] = [];
     let points = 0;
-    if (verdict !== "no") {
-      const base = verdict === "yes" ? rar.pts : Math.round(rar.pts / 2);
+    if (verdict === "yes" || verdict === "located" || verdict === "unsure") {
+      const base = verdict === "unsure" ? Math.round(rar.pts / 2) : rar.pts;
       points = base; parts.push(`${cap1(rar.id)} +${base}${verdict === "unsure" ? " (half: not sure)" : ""}`);
       const bo = await bonuses(admin, user.id, key, lat, lng, tz); points += bo.add; parts.push(...bo.parts);
       if (prev?.verdict === "sighted") parts.push("Upgraded from sighting");
